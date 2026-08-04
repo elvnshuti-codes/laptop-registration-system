@@ -14,7 +14,7 @@ class LaptopRegistrationController extends Controller
     {
         $registrations = LaptopRegistration::all();
 
-        dd($registrations);
+        return view('registrations.index', ['registrations' => $registrations]);
     }
 
     /**

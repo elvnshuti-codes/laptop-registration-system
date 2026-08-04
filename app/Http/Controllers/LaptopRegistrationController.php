@@ -22,16 +22,27 @@ class LaptopRegistrationController extends Controller
      */
     public function create()
     {
-        //
+        return view('registrations.create');
     }
 
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-    {
-        //
-    }
+{
+    $validated = $request->validate([
+        'employee_name' => 'required|string|max:255',
+        'employee_id_number' => 'required|string|max:255',
+        'department' => 'required|string|max:255',
+        'laptop_type' => 'required|string|max:255',
+    ]);
+
+    $validated['checked_in_at'] = now();
+
+    LaptopRegistration::create($validated);
+
+    return redirect()->route('registrations.index')->with('success', 'Laptop checked in successfully.');
+}
 
     /**
      * Display the specified resource.

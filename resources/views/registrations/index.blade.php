@@ -13,6 +13,7 @@
                 <th>Laptop Type</th>
                 <th>Checked In</th>
                 <th>Status</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -29,6 +30,9 @@
                        @else
                     <span class="text-success">Checked In</span>
                       @endif
+                    </td>
+                    <td>
+                    <a href="{{ route('registrations.edit', $registration) }}" class="btn btn-sm btn-outline-primary">Edit</a>
                     </td>
                 </tr>
             @endforeach

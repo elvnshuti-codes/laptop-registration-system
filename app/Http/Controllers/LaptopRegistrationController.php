@@ -55,18 +55,32 @@ class LaptopRegistrationController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(LaptopRegistration $registration)
     {
-        //
+        return view('registrations.edit', ['registration' => $registration]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, LaptopRegistration $registration)
     {
-        //
+        $validated = $request->validate([
+            'employee_name' => 'required|string|max:255',
+            'employee_id_number' => 'required|string|max:255',
+            'department' => 'required|string|max:255',
+            'laptop_type' => 'required|string|max:255',
+        ]);
+    
+        if ($request->has('check_out')) {
+            $validated['checked_out_at'] = now();
+        }
+    
+        $registration->update($validated);
+    
+        return redirect()->route('registrations.index')->with('success', 'Registration updated successfully.');
     }
+    
 
     /**
      * Remove the specified resource from storage.

@@ -31,9 +31,14 @@
                     <span class="text-success">Checked In</span>
                       @endif
                     </td>
-                    <td>
-                    <a href="{{ route('registrations.edit', $registration) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                    </td>
+            <td>
+            <a href="{{ route('registrations.edit', $registration) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+            <form action="{{ route('registrations.destroy', $registration) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete this registration?');">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+    </form>
+</td> 
                 </tr>
             @endforeach
         </tbody>

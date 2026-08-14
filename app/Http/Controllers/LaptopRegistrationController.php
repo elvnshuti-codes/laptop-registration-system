@@ -10,12 +10,23 @@ class LaptopRegistrationController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
-    {
-        $registrations = LaptopRegistration::all();
+    public function index(Request $request)
+{
+    $query = LaptopRegistration::query();
 
-        return view('registrations.index', ['registrations' => $registrations]);
+    if ($request->filled('search')) {
+        $search = $request->input('search');
+
+        $query->where(function ($q) use ($search) {
+            $q->where('employee_name', 'like', "%{$search}%")
+              ->orWhere('employee_id_number', 'like', "%{$search}%");
+        });
     }
+
+    $registrations = $query->latest('checked_in_at')->get();
+
+    return view('registrations.index', ['registrations' => $registrations]);
+}
 
     /**
      * Show the form for creating a new resource.

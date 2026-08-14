@@ -3,6 +3,13 @@
 @section('content')
 
     <h1>Laptop Registrations</h1>
+    <form action="{{ route('registrations.index') }}" method="GET" class="mb-3">
+    <div class="input-group">
+        <input type="text" name="search" class="form-control" placeholder="Search by employee name or ID..." value="{{ request('search') }}">
+        <button type="submit" class="btn btn-outline-secondary">Search</button>
+        <a href="{{ route('registrations.index') }}" class="btn btn-outline-danger">Clear</a>
+    </div>
+</form>
 
     <table class="table table-bordered mt-3">
         <thead>

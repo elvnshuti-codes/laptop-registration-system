@@ -2,16 +2,20 @@
 
 @section('content')
 
-    <h1>Laptop Registrations</h1>
-    <form action="{{ route('registrations.index') }}" method="GET" class="mb-3">
+<h1>Laptop Registrations</h1>
+
+<label class="form-label fw-bold">Search All Records (Database)</label>
+<form action="{{ route('registrations.index') }}" method="GET" class="mb-3">
     <div class="input-group">
         <input type="text" name="search" class="form-control" placeholder="Search by employee name or ID..." value="{{ request('search') }}">
         <button type="submit" class="btn btn-outline-secondary">Search</button>
         <a href="{{ route('registrations.index') }}" class="btn btn-outline-danger">Clear</a>
     </div>
 </form>
-
-    <table class="table table-bordered mt-3">
+<p class="text-muted small mb-2">
+    Filter records showning on this page.
+</p>
+<table class="table table-bordered mt-3" id="registrationsTable">
         <thead>
             <tr>
                 <th>Employee Name</th>
@@ -51,4 +55,13 @@
         </tbody>
     </table>
 
+@endsection
+
+    @section('scripts')
+    <script>
+    $(document).ready(function () {
+    $('#registrationsTable').DataTable();
+        });
+
+    </script>
 @endsection

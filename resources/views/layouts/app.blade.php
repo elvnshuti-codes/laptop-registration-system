@@ -9,6 +9,15 @@
 <body>
 
     <div class="container mt-4">
+    @auth
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span>Logged in as <strong>{{ Auth::user()->name }}</strong></span>
+            <form action="{{ route('logout') }}" method="POST">
+                @csrf
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Logout</button>
+            </form>
+        </div>
+    @endauth
         @yield('content')
     </div>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>

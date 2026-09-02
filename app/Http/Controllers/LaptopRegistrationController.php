@@ -33,6 +33,7 @@ class LaptopRegistrationController extends Controller
      */
     public function create()
     {
+        abort_unless(auth()->user()->can('manage registrations'), 403);
         return view('registrations.create');
     }
 
@@ -41,6 +42,7 @@ class LaptopRegistrationController extends Controller
      */
     public function store(Request $request)
 {
+    abort_unless(auth()->user()->can('manage registrations'), 403);
     $validated = $request->validate([
         'employee_name' => 'required|string|max:255',
         'employee_id_number' => 'required|string|max:255',
@@ -51,7 +53,7 @@ class LaptopRegistrationController extends Controller
     $validated['checked_in_at'] = now();
 
     LaptopRegistration::create($validated);
-
+    
     return redirect()->route('registrations.index')->with('success', 'Laptop checked in successfully.');
 }
 
@@ -68,6 +70,7 @@ class LaptopRegistrationController extends Controller
      */
     public function edit(LaptopRegistration $registration)
     {
+        abort_unless(auth()->user()->can('manage registrations'), 403);
         return view('registrations.edit', ['registration' => $registration]);
     }
 
@@ -75,7 +78,7 @@ class LaptopRegistrationController extends Controller
      * Update the specified resource in storage.
      */
     public function update(Request $request, LaptopRegistration $registration)
-    {
+    {abort_unless(auth()->user()->can('manage registrations'), 403);
         $validated = $request->validate([
             'employee_name' => 'required|string|max:255',
             'employee_id_number' => 'required|string|max:255',
@@ -88,7 +91,7 @@ class LaptopRegistrationController extends Controller
         }
     
         $registration->update($validated);
-    
+       
         return redirect()->route('registrations.index')->with('success', 'Registration updated successfully.');
     }
     
@@ -98,6 +101,7 @@ class LaptopRegistrationController extends Controller
      */
     public function destroy(LaptopRegistration $registration)
 {
+    abort_unless(auth()->user()->can('manage registrations'), 403);
     $registration->delete();
 
     return redirect()->route('registrations.index')->with('success', 'Registration deleted.');

@@ -37,5 +37,25 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect()->route('login');
+        
     }
+    public function showChangePasswordForm()
+{
+    return view('auth.change-password');
+}
+
+public function changePassword(Request $request)
+{
+    $validated = $request->validate([
+        'password' => 'required|string|min:8|confirmed',
+    ]);
+
+    auth()->user()->update([
+        'password' => $validated['password'],
+        'must_change_password' => false,
+        'password_changed_at' => now(),
+    ]);
+
+    return redirect()->route('registrations.index')->with('success', 'Password changed successfully.');
+}
 }

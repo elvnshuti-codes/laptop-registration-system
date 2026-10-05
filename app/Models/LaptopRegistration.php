@@ -13,5 +13,12 @@ class LaptopRegistration extends Model
     'laptop_type',
     'checked_in_at',
     'checked_out_at',
-                      ];
+    'laptop_id',
+
+];
+ public function laptop()
+{
+    return $this->belongsTo(Laptop::class);
+ }
+ 
 }

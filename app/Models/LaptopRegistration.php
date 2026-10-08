@@ -15,6 +15,7 @@ class LaptopRegistration extends Model
     'checked_out_at',
     'laptop_id',
     'pin',
+    'phone_number',
 
 ];
  public function laptop()

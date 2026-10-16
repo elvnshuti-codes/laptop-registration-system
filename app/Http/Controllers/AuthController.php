@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
-
 {
     public function showLoginForm()
     {
@@ -23,7 +22,7 @@ class AuthController extends Controller
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
 
-            return redirect()->route('registrations.index');
+            return $this->redirectToHome();
         }
 
         return back()->withErrors([
@@ -31,31 +30,49 @@ class AuthController extends Controller
         ])->onlyInput('email');
     }
 
-       public function logout(Request $request)
+    public function logout(Request $request)
     {
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
         return redirect()->route('login');
-        
     }
+
     public function showChangePasswordForm()
-{
-    return view('auth.change-password');
-}
+    {
+        return view('auth.change-password');
+    }
 
-public function changePassword(Request $request)
-{
-    $validated = $request->validate([
-        'password' => 'required|string|min:8|confirmed',
-    ]);
+    public function changePassword(Request $request)
+    {
+        $validated = $request->validate([
+            'password' => 'required|string|min:8|confirmed',
+        ]);
 
-    auth()->user()->update([
-        'password' => $validated['password'],
-        'must_change_password' => false,
-        'password_changed_at' => now(),
-    ]);
+        auth()->user()->update([
+            'password' => $validated['password'],
+            'must_change_password' => false,
+            'password_changed_at' => now(),
+        ]);
 
-    return redirect()->route('registrations.index')->with('success', 'Password changed successfully.');
-}
+        return $this->redirectToHome()->with('success', 'Password changed successfully.');
+    }
+
+    /**
+     * Decide where a user lands after login / password change.
+     * Gate officers go straight to visitor check-in; everyone else
+     * (Administrator, Registration Officer, ...) goes to registrations.
+     * Administrators pass every permission check, so they are excluded explicitly.
+     */
+    private function redirectToHome()
+    {
+        $user = Auth::user();
+
+        if ($user->can('manage gate visitors') && ! $user->hasRole('Administrator')) {
+            return redirect()->route('gate.create');
+        }
+
+        return redirect()->route('registrations.index');
+    }
 }

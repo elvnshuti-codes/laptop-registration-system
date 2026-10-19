@@ -10,9 +10,23 @@
 <body class="bg-light">
 
     @auth
-    <nav class="navbar navbar-dark bg-dark mb-4">
+    <nav class="navbar navbar-expand navbar-dark bg-dark mb-4">
         <div class="container">
             <span class="navbar-brand">UNBS Laptop & Visitor Management System</span>
+
+            <ul class="navbar-nav me-auto">
+                @can('manage gate visitors')
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('gate.create', 'gate.ticket') ? 'active' : '' }}"
+                           href="{{ route('gate.create') }}">Check-In</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('gate.checkout.index') ? 'active' : '' }}"
+                           href="{{ route('gate.checkout.index') }}">Check-Out</a>
+                    </li>
+                @endcan
+            </ul>
+
             <div class="d-flex align-items-center text-white">
                 <span class="me-3 small">{{ Auth::user()->name }}</span>
                 <form action="{{ route('logout') }}" method="POST" class="m-0">
@@ -27,6 +41,9 @@
     <main class="container">
         @if (session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+        @if (session('error'))
+            <div class="alert alert-danger">{{ session('error') }}</div>
         @endif
 
         @yield('content')

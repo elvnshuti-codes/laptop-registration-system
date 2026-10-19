@@ -17,7 +17,6 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/change-password', [AuthController::class, 'showChangePasswordForm'])->name('password.change')->middleware('auth');
 Route::post('/change-password', [AuthController::class, 'changePassword'])->name('password.change.submit')->middleware('auth');
 
-
 // --- Administration & laptop registrations ---
 Route::resource('users', UserManagementController::class)->middleware(['auth', 'force.password.change']);
 Route::resource('registrations', LaptopRegistrationController::class)->middleware(['auth', 'force.password.change']);
@@ -27,4 +26,7 @@ Route::middleware(['auth', 'permission:manage gate visitors'])->group(function (
     Route::get('/gate/create', [GateController::class, 'create'])->name('gate.create');
     Route::post('/gate', [GateController::class, 'store'])->name('gate.store');
     Route::get('/gate/{visit}/ticket', [GateController::class, 'ticket'])->name('gate.ticket');
+
+    Route::get('/gate/checkout', [GateController::class, 'checkoutIndex'])->name('gate.checkout.index');
+    Route::post('/gate/{visit}/checkout', [GateController::class, 'checkout'])->name('gate.checkout');
 });

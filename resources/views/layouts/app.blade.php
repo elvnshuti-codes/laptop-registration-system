@@ -30,6 +30,10 @@
                         <a class="nav-link {{ request()->routeIs('labels.*') ? 'active' : '' }}"
                            href="{{ route('labels.index') }}">Labels</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('entry.*') ? 'active' : '' }}"
+                           href="{{ route('entry.index') }}">Entry</a>
+                    </li>
                 @endcan
             </ul>
 

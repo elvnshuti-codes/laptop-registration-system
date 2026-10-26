@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\GateController;
 use App\Http\Controllers\LabelController;
+use App\Http\Controllers\EntryController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -32,9 +33,19 @@ Route::middleware(['auth', 'permission:manage gate visitors'])->group(function (
     Route::post('/gate/{visit}/checkout', [GateController::class, 'checkout'])->name('gate.checkout');
 });
 
-// --- Barcode labels (Entry Officer / Administrator) ---
+// --- Entry Officer (Checkpoint 2) and barcode labels ---
 Route::middleware(['auth', 'permission:manage visitor devices'])->group(function () {
     Route::get('/labels', [LabelController::class, 'index'])->name('labels.index');
     Route::post('/labels/stickers', [LabelController::class, 'generateStickers'])->name('labels.stickers.generate');
     Route::get('/labels/stickers/sheet', [LabelController::class, 'stickerSheet'])->name('labels.stickers.sheet');
+
+    Route::get('/entry', [EntryController::class, 'index'])->name('entry.index');
+    Route::get('/entry/lookup', [EntryController::class, 'lookup'])->name('entry.lookup');
+    Route::get('/entry/visits/{visit}', [EntryController::class, 'show'])->name('entry.visits.show');
+    Route::post('/entry/visits/{visit}/devices', [EntryController::class, 'storeDevice'])->name('entry.devices.store');
+    Route::post('/entry/visits/{visit}/no-device', [EntryController::class, 'noDevice'])->name('entry.no-device');
+
+    Route::get('/entry/checkout/lookup', [EntryController::class, 'checkoutLookup'])->name('entry.checkout.lookup');
+    Route::get('/entry/visits/{visit}/checkout', [EntryController::class, 'checkoutShow'])->name('entry.visits.checkout');
+    Route::post('/entry/visits/{visit}/checkout', [EntryController::class, 'checkoutDevice'])->name('entry.visits.checkout.device');
 });

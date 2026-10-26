@@ -4,6 +4,7 @@
 
 @section('content')
 <style>
+    #visit-barcode { max-width: 100%; height: auto; }
     @media print {
         .navbar, .no-print, .alert { display: none !important; }
         body { background: #fff !important; }
@@ -22,6 +23,9 @@
             <div class="card-body p-4">
                 <div class="text-muted small text-uppercase">Visit Code</div>
                 <div class="display-6 fw-bold font-monospace my-2">{{ $visit->visit_code }}</div>
+
+                {{-- Barcode carries the code with hyphens; the printed text keeps the slashes. --}}
+                <svg id="visit-barcode" data-code="{{ str_replace('/', '-', $visit->visit_code) }}" class="mb-2"></svg>
                 <hr>
 
                 <table class="table table-borderless text-start mb-0">
@@ -60,4 +64,18 @@
 
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<script>
+    var el = document.getElementById('visit-barcode');
+    JsBarcode(el, el.dataset.code, {
+        format: 'CODE128',
+        width: 1.5,
+        height: 50,
+        displayValue: false,
+        margin: 0
+    });
+</script>
 @endsection

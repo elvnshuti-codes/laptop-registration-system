@@ -5,6 +5,7 @@ use App\Http\Controllers\LaptopRegistrationController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\GateController;
+use App\Http\Controllers\LabelController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -29,4 +30,11 @@ Route::middleware(['auth', 'permission:manage gate visitors'])->group(function (
 
     Route::get('/gate/checkout', [GateController::class, 'checkoutIndex'])->name('gate.checkout.index');
     Route::post('/gate/{visit}/checkout', [GateController::class, 'checkout'])->name('gate.checkout');
+});
+
+// --- Barcode labels (Entry Officer / Administrator) ---
+Route::middleware(['auth', 'permission:manage visitor devices'])->group(function () {
+    Route::get('/labels', [LabelController::class, 'index'])->name('labels.index');
+    Route::post('/labels/stickers', [LabelController::class, 'generateStickers'])->name('labels.stickers.generate');
+    Route::get('/labels/stickers/sheet', [LabelController::class, 'stickerSheet'])->name('labels.stickers.sheet');
 });

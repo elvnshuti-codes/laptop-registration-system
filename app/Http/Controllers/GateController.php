@@ -54,7 +54,7 @@ class GateController extends Controller
                 ->where('id', $sequence->id)
                 ->update(['last_number' => $nextNumber, 'updated_at' => now()]);
 
-            $visitCode = sprintf('UNBS/V%03d/%s', $nextNumber, now()->format('D'));
+                $visitCode = sprintf('UNBS/V%03d/%s-%s', $nextNumber, now()->format('D'), strtoupper(now()->format('dMy')));
 
             return VisitorVisit::create([
                 ...$validated,

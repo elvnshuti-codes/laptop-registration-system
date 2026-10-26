@@ -25,6 +25,12 @@
                            href="{{ route('gate.checkout.index') }}">Check-Out</a>
                     </li>
                 @endcan
+                @can('manage visitor devices')
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('labels.*') ? 'active' : '' }}"
+                           href="{{ route('labels.index') }}">Labels</a>
+                    </li>
+                @endcan
             </ul>
 
             <div class="d-flex align-items-center text-white">

@@ -13,6 +13,8 @@ class VisitorDevice extends Model
         'visitor_visit_id',
         'device_code',
         'asset_tag',
+        'description',
+        'sticker_code',
         'device_checked_in_at',
         'device_checked_out_at',
     ];

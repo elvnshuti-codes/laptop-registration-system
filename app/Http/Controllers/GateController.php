@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\VisitorVisit;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -54,7 +55,7 @@ class GateController extends Controller
                 ->where('id', $sequence->id)
                 ->update(['last_number' => $nextNumber, 'updated_at' => now()]);
 
-                $visitCode = sprintf('UNBS/V%03d/%s-%s', $nextNumber, now()->format('D'), strtoupper(now()->format('dMy')));
+            $visitCode = sprintf('UNBS/V%03d/%s-%s', $nextNumber, now()->format('D'), strtoupper(now()->format('dMy')));
 
             return VisitorVisit::create([
                 ...$validated,
@@ -76,6 +77,17 @@ class GateController extends Controller
 
     // --- Check-out --------------------------------------------------------
 
+    // Finds a visitor still on site from a scanned or typed visit code.
+    private function findOnSiteVisit(string $code): ?VisitorVisit
+    {
+        // Barcodes carry hyphens, printed codes carry slashes: treat them the same.
+        $code = str_replace('/', '-', trim($code));
+
+        return VisitorVisit::whereNull('gate_checked_out_at')
+            ->whereRaw("REPLACE(visit_code, '/', '-') = ?", [$code])
+            ->first();
+    }
+
     // Lists everyone checked in at the gate who has not yet left,
     // with a count of devices still checked in for each visitor.
     public function checkoutIndex()
@@ -89,18 +101,59 @@ class GateController extends Controller
         return view('gate.checkout', compact('visits'));
     }
 
-    // Checks a visitor out of the gate, after two guard checks.
-    public function checkout(VisitorVisit $visit)
+    // Scan or type a visit code to jump straight to that visitor's check-out page.
+    public function checkoutLookup(Request $request)
+    {
+        $request->validate(['code' => 'required|string|max:100']);
+
+        $visit = $this->findOnSiteVisit($request->input('code'));
+
+        if (! $visit) {
+            return back()
+                ->withInput()
+                ->withErrors(['code' => 'No visitor on site has that code. Check it and try again.']);
+        }
+
+        return redirect()->route('gate.checkout.show', $visit);
+    }
+
+    // The visitor's check-out page: what to collect, device status, confirm.
+    public function checkoutShow(VisitorVisit $visit)
+    {
+        if ($visit->gate_checked_out_at) {
+            return redirect()
+                ->route('gate.checkout.done', $visit)
+                ->with('error', "{$visit->name} is already checked out.");
+        }
+
+        $visit->load('devices');
+
+        return view('gate.checkout-show', compact('visit'));
+    }
+
+    // Final step: two guards, two confirmations, then record the exit.
+    public function checkout(Request $request, VisitorVisit $visit)
     {
         // Guard 1: already left.
         if ($visit->gate_checked_out_at) {
-            return back()->with('error', "{$visit->name} is already checked out.");
+            return redirect()
+                ->route('gate.checkout.done', $visit)
+                ->with('error', "{$visit->name} is already checked out.");
         }
 
         // Guard 2: a device is still checked in on the premises.
         if ($visit->devices()->whereNull('device_checked_out_at')->exists()) {
-            return back()->with('error', "{$visit->name} still has a device checked in. Check the device out first.");
+            return back()->with('error', "{$visit->name} still has a device checked in. Check the device out at the Entry checkpoint first.");
         }
+
+        // The officer must confirm both items were handed back / collected.
+        $request->validate([
+            'document_returned' => 'accepted',
+            'card_collected' => 'accepted',
+        ], [
+            'document_returned.accepted' => 'Confirm that the ID document was returned to the visitor.',
+            'card_collected.accepted' => 'Confirm that the visitor card was collected.',
+        ]);
 
         $visit->update([
             'gate_checked_out_at' => now(),
@@ -108,7 +161,23 @@ class GateController extends Controller
         ]);
 
         return redirect()
-            ->route('gate.checkout.index')
-            ->with('success', "{$visit->name} ({$visit->visit_code}) checked out.");
+            ->route('gate.checkout.done', $visit)
+            ->with('success', "{$visit->name} checked out.");
+    }
+
+    // Summary of the completed visit.
+    public function checkoutDone(VisitorVisit $visit)
+    {
+        // Not finished yet: send the officer back to the check-out page.
+        if (! $visit->gate_checked_out_at) {
+            return redirect()->route('gate.checkout.show', $visit);
+        }
+
+        $minutes = (int) abs(
+            Carbon::parse($visit->gate_checked_in_at)->diffInMinutes(Carbon::parse($visit->gate_checked_out_at))
+        );
+        $duration = intdiv($minutes, 60) . ' h ' . ($minutes % 60) . ' min';
+
+        return view('gate.checkout-done', compact('visit', 'duration'));
     }
 }

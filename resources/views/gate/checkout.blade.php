@@ -3,6 +3,21 @@
 @section('title', 'Visitor Check-Out')
 
 @section('content')
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-4">
+        <h5>Scan the visitor's ticket</h5>
+        <form method="GET" action="{{ route('gate.checkout.lookup') }}">
+            <div class="input-group input-group-lg">
+                <input type="text" name="code" value="{{ old('code') }}"
+                       class="form-control @error('code') is-invalid @enderror"
+                       placeholder="Scan or type visit code" autocomplete="off" autofocus required>
+                <button type="submit" class="btn btn-danger">Find visitor</button>
+                @error('code') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card shadow-sm border-0">
     <div class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
         <div>
@@ -43,14 +58,11 @@
                                     @endif
                                 </td>
                                 <td class="text-end">
-                                    <form method="POST" action="{{ route('gate.checkout', $visit) }}"
-                                          onsubmit="return confirm('Confirm the ID document and visitor card {{ $visit->visitor_card_number }} have been returned?');">
-                                        @csrf
-                                        <button type="submit" class="btn btn-sm btn-danger"
-                                                @disabled($visit->devices_on_site > 0)>
-                                            Check Out
-                                        </button>
-                                    </form>
+                                    <a href="{{ route('gate.checkout.show', $visit) }}"
+                                       class="btn btn-sm btn-danger @if ($visit->devices_on_site > 0) disabled @endif"
+                                       @if ($visit->devices_on_site > 0) aria-disabled="true" tabindex="-1" @endif>
+                                        Check Out
+                                    </a>
                                 </td>
                             </tr>
                         @endforeach

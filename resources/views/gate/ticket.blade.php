@@ -67,7 +67,7 @@
 @endsection
 
 @section('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
+<script src="{{ asset('js/JsBarcode.all.min.js') }}"></script>
 <script>
     var el = document.getElementById('visit-barcode');
     JsBarcode(el, el.dataset.code, {

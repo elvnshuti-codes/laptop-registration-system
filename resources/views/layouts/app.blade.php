@@ -15,6 +15,18 @@
             <span class="navbar-brand">UNBS Laptop & Visitor Management System</span>
 
             <ul class="navbar-nav me-auto">
+                @hasanyrole('Administrator|Registration Officer')
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('registrations.*') ? 'active' : '' }}"
+                           href="{{ route('registrations.index') }}">Registrations</a>
+                    </li>
+                @endhasanyrole
+                @role('Administrator')
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}"
+                           href="{{ route('users.index') }}">Users</a>
+                    </li>
+                @endrole
                 @can('manage gate visitors')
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('gate.create', 'gate.ticket') ? 'active' : '' }}"
@@ -27,14 +39,16 @@
                 @endcan
                 @can('manage visitor devices')
                     <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('labels.*') ? 'active' : '' }}"
-                           href="{{ route('labels.index') }}">Labels</a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('entry.*') ? 'active' : '' }}"
                            href="{{ route('entry.index') }}">Entry</a>
                     </li>
                 @endcan
+                @role('Administrator')
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('labels.*') ? 'active' : '' }}"
+                           href="{{ route('labels.index') }}">Labels</a>
+                    </li>
+                @endrole
             </ul>
 
             <div class="d-flex align-items-center text-white">

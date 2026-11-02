@@ -50,27 +50,44 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ]);
 
-        auth()->user()->update([
+        $user = auth()->user();
+
+        $user->update([
             'password' => $validated['password'],
             'must_change_password' => false,
             'password_changed_at' => now(),
         ]);
+
+        // Receptionists set up their own profile right after their first password change.
+        if (! $user->hasRole('Administrator') && $user->can('manage visitor reception')) {
+            return redirect()->route('profile.edit')
+                ->with('success', 'Password changed. Please confirm your name below.');
+        }
 
         return $this->redirectToHome()->with('success', 'Password changed successfully.');
     }
 
     /**
      * Decide where a user lands after login / password change.
-     * Gate officers go straight to visitor check-in; everyone else
-     * (Administrator, Registration Officer, ...) goes to registrations.
-     * Administrators pass every permission check, so they are excluded explicitly.
+     * Administrators pass every permission check, so they are excluded explicitly
+     * and go to the main registrations page. Officers land on their own screen.
      */
     private function redirectToHome()
     {
         $user = Auth::user();
 
-        if ($user->can('manage gate visitors') && ! $user->hasRole('Administrator')) {
-            return redirect()->route('gate.create');
+        if (! $user->hasRole('Administrator')) {
+            if ($user->can('manage gate visitors')) {
+                return redirect()->route('gate.create');
+            }
+
+            if ($user->can('manage visitor devices')) {
+                return redirect()->route('entry.index');
+            }
+
+            if ($user->can('manage visitor reception')) {
+                return redirect()->route('reception.index');
+            }
         }
 
         return redirect()->route('registrations.index');

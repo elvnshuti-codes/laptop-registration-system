@@ -14,21 +14,24 @@ class VisitorRolesSeeder extends Seeder
      */
     public function run(): void
     {
-         // firstOrCreate (not create) so this seeder can be run more than once safely --
-    // re-running create() a second time would crash on the unique "name" constraint
-    // Spatie's permissions table enforces. firstOrCreate finds-or-makes, never duplicates.
-    $gateVisitors = Permission::firstOrCreate(['name' => 'manage gate visitors']);
-    $visitorDevices = Permission::firstOrCreate(['name' => 'manage visitor devices']);
-    $visitorReception = Permission::firstOrCreate(['name' => 'manage visitor reception']);
+        // firstOrCreate (not create) so this seeder can be run more than once safely --
+        // re-running create() a second time would crash on the unique "name" constraint
+        // Spatie's permissions table enforces. firstOrCreate finds-or-makes, never duplicates.
+        $gateVisitors = Permission::firstOrCreate(['name' => 'manage gate visitors']);
+        $visitorDevices = Permission::firstOrCreate(['name' => 'manage visitor devices']);
+        $visitorReception = Permission::firstOrCreate(['name' => 'manage visitor reception']);
+        $sampleReception = Permission::firstOrCreate(['name' => 'manage sample reception']);
 
-    $gateOfficer = Role::firstOrCreate(['name' => 'Gate Officer']);
-    $entryOfficer = Role::firstOrCreate(['name' => 'Entry Officer']);
-    $receptionist = Role::firstOrCreate(['name' => 'Receptionist']);
+        $gateOfficer = Role::firstOrCreate(['name' => 'Gate Officer']);
+        $entryOfficer = Role::firstOrCreate(['name' => 'Entry Officer']);
+        $receptionist = Role::firstOrCreate(['name' => 'Receptionist']);
+        $sampleOfficer = Role::firstOrCreate(['name' => 'Sample Reception Officer']);
 
-    // Each role gets exactly the one permission matching its checkpoint --
-    // fully separate responsibilities, per the design decision.
-    $gateOfficer->givePermissionTo($gateVisitors);
-    $entryOfficer->givePermissionTo($visitorDevices);
-    $receptionist->givePermissionTo($visitorReception);
+        // Each role gets exactly the one permission matching its checkpoint --
+        // fully separate responsibilities, per the design decision.
+        $gateOfficer->givePermissionTo($gateVisitors);
+        $entryOfficer->givePermissionTo($visitorDevices);
+        $receptionist->givePermissionTo($visitorReception);
+        $sampleOfficer->givePermissionTo($sampleReception);
     }
 }

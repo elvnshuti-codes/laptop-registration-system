@@ -15,25 +15,25 @@
             <span class="navbar-brand">UNBS Laptop & Visitor Management System</span>
 
             <ul class="navbar-nav me-auto">
-                @hasanyrole('Administrator|Registration Officer')
+                @can('view registrations')
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('registrations.*') ? 'active' : '' }}"
                            href="{{ route('registrations.index') }}">Registrations</a>
                     </li>
-                @endhasanyrole
-                @role('Administrator')
+                @endcan
+                @can('manage users')
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}"
                            href="{{ route('users.index') }}">Users</a>
                     </li>
-                @endrole
+                @endcan
                 @can('manage gate visitors')
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('gate.create', 'gate.ticket') ? 'active' : '' }}"
                            href="{{ route('gate.create') }}">Check-In</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('gate.checkout.index') ? 'active' : '' }}"
+                        <a class="nav-link {{ request()->routeIs('gate.checkout.*') ? 'active' : '' }}"
                            href="{{ route('gate.checkout.index') }}">Check-Out</a>
                     </li>
                 @endcan
@@ -41,6 +41,12 @@
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('entry.*') ? 'active' : '' }}"
                            href="{{ route('entry.index') }}">Entry</a>
+                    </li>
+                @endcan
+                @can('manage visitor reception')
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('reception.*') ? 'active' : '' }}"
+                           href="{{ route('reception.index') }}">Reception</a>
                     </li>
                 @endcan
                 @role('Administrator')
@@ -52,7 +58,7 @@
             </ul>
 
             <div class="d-flex align-items-center text-white">
-                <span class="me-3 small">{{ Auth::user()->name }}</span>
+                <a href="{{ route('profile.edit') }}" class="me-3 small text-white text-decoration-none">{{ Auth::user()->name }}</a>
                 <form action="{{ route('logout') }}" method="POST" class="m-0">
                     @csrf
                     <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>

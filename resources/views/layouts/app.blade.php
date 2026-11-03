@@ -3,16 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'UNBS  Visitor  Management System')</title>
+    <title>@yield('title', 'UNBS Visitor Management System')</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/unbs-logo.png') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --unbs-blue: #084090;
+            --unbs-blue-dark: #062f6b;
+            --unbs-navy: #0b2a5c;
+            --unbs-gold: #fcd116;
+
+            /* Bootstrap's "primary" becomes the UNBS blue everywhere. */
+            --bs-primary: #084090;
+            --bs-primary-rgb: 8, 64, 144;
+            --bs-link-color: #084090;
+            --bs-link-color-rgb: 8, 64, 144;
+            --bs-link-hover-color: #062f6b;
+            --bs-link-hover-color-rgb: 6, 47, 107;
+        }
+
+        body.bg-light { background-color: #f3f6fb !important; }
+
+        /* Navigation bar */
+        .unbs-nav {
+            background-color: var(--unbs-blue);
+            border-bottom: 3px solid var(--unbs-gold);
+        }
+        .unbs-nav .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: .65rem;
+            font-weight: 600;
+            letter-spacing: .3px;
+        }
+        .unbs-nav .navbar-brand img { height: 42px; width: auto; }
+        .unbs-nav .nav-link { color: rgba(255, 255, 255, .78); }
+        .unbs-nav .nav-link:hover { color: #fff; }
+        .unbs-nav .nav-link.active {
+            color: #fff;
+            font-weight: 600;
+            box-shadow: inset 0 -3px 0 var(--unbs-gold);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            --bs-btn-bg: var(--unbs-blue);
+            --bs-btn-border-color: var(--unbs-blue);
+            --bs-btn-hover-bg: var(--unbs-blue-dark);
+            --bs-btn-hover-border-color: var(--unbs-blue-dark);
+            --bs-btn-active-bg: var(--unbs-blue-dark);
+            --bs-btn-active-border-color: var(--unbs-blue-dark);
+            --bs-btn-disabled-bg: var(--unbs-blue);
+            --bs-btn-disabled-border-color: var(--unbs-blue);
+        }
+        .btn-outline-primary {
+            --bs-btn-color: var(--unbs-blue);
+            --bs-btn-border-color: var(--unbs-blue);
+            --bs-btn-hover-bg: var(--unbs-blue);
+            --bs-btn-hover-border-color: var(--unbs-blue);
+            --bs-btn-active-bg: var(--unbs-blue);
+            --bs-btn-active-border-color: var(--unbs-blue);
+        }
+
+        /* Cards */
+        .card { border-radius: .75rem; overflow: hidden; }
+        .card-header.bg-dark { background-color: var(--unbs-navy) !important; }
+    </style>
 </head>
 <body class="bg-light">
 
     @auth
-    <nav class="navbar navbar-expand navbar-dark bg-dark mb-4">
+    <nav class="navbar navbar-expand navbar-dark unbs-nav mb-4">
         <div class="container">
-            <span class="navbar-brand">UNBS  Visitor  Management System</span>
+            <span class="navbar-brand">
+                <img src="{{ asset('images/unbs-logo.png') }}" alt="UNBS">
+                <span>UNBS Visitor Management System</span>
+            </span>
 
             <ul class="navbar-nav me-auto">
                 @can('view registrations')

@@ -25,15 +25,43 @@
                     </div>
                 @endif
 
+                {{-- Booking lookup (only for visitors who were pre-booked) --}}
+                @if (! $booking)
+                    <form method="GET" action="{{ route('gate.booking.lookup') }}" class="mb-4 pb-4 border-bottom">
+                        <label for="booking_code" class="form-label fw-semibold">
+                            Visitor has a booking? <span class="text-muted fw-normal">(scan or type the code)</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="text" id="booking_code" name="booking_code"
+                                   class="form-control text-uppercase" placeholder="BK-XXXXXX"
+                                   value="{{ old('booking_code') }}">
+                            <button type="submit" class="btn btn-outline-primary">Find booking</button>
+                        </div>
+                    </form>
+                @else
+                    <div class="alert alert-success">
+                        <strong>Booking {{ $booking->booking_code }} found.</strong>
+                        Details are filled in below. <a href="{{ route('gate.create') }}" class="alert-link">Clear</a>
+                    </div>
+                    <div class="alert alert-warning">
+                        Check that the visitor's <strong>{{ $booking->id_document_type === 'Other' ? $booking->id_document_other : $booking->id_document_type }}</strong>
+                        shows number <strong>{{ $booking->id_document_number }}</strong> before you continue.
+                    </div>
+                @endif
+
                 <form method="POST" action="{{ route('gate.store') }}" novalidate>
                     @csrf
+
+                    @if ($booking)
+                        <input type="hidden" name="booking_id" value="{{ $booking->id }}">
+                    @endif
 
                     {{-- Visitor name --}}
                     <div class="mb-3">
                         <label for="name" class="form-label fw-semibold">Visitor Name</label>
                         <input type="text" id="name" name="name"
                                class="form-control @error('name') is-invalid @enderror"
-                               value="{{ old('name') }}" placeholder="Full name" autofocus required>
+                               value="{{ old('name', $booking?->name) }}" placeholder="Full name" autofocus required>
                         @error('name') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
@@ -43,8 +71,8 @@
                             <label for="purpose" class="form-label fw-semibold">Purpose of Visit</label>
                             <select id="purpose" name="purpose"
                                     class="form-select @error('purpose') is-invalid @enderror" required>
-                                @foreach (['Meeting', 'Delivery', 'Interview', 'Official Business', 'Other'] as $option)
-                                    <option value="{{ $option }}" @selected(old('purpose', 'Meeting') === $option)>{{ $option }}</option>
+                                @foreach ($purposes as $option)
+                                    <option value="{{ $option }}" @selected(old('purpose', $booking?->purpose ?? 'Meeting') === $option)>{{ $option }}</option>
                                 @endforeach
                             </select>
                             @error('purpose') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -53,7 +81,7 @@
                             <label for="purpose_other" class="form-label fw-semibold">Please specify</label>
                             <input type="text" id="purpose_other" name="purpose_other"
                                    class="form-control @error('purpose_other') is-invalid @enderror"
-                                   value="{{ old('purpose_other') }}" placeholder="Describe the purpose">
+                                   value="{{ old('purpose_other', $booking?->purpose_other) }}" placeholder="Describe the purpose">
                             @error('purpose_other') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     </div>
@@ -65,7 +93,7 @@
                             <select id="id_document_type" name="id_document_type"
                                     class="form-select @error('id_document_type') is-invalid @enderror" required>
                                 @foreach (['National ID', 'Passport', 'Driving Permit', 'Other'] as $option)
-                                    <option value="{{ $option }}" @selected(old('id_document_type', 'National ID') === $option)>{{ $option }}</option>
+                                    <option value="{{ $option }}" @selected(old('id_document_type', $booking?->id_document_type ?? 'National ID') === $option)>{{ $option }}</option>
                                 @endforeach
                             </select>
                             @error('id_document_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -74,9 +102,21 @@
                             <label for="id_document_other" class="form-label fw-semibold">Please specify</label>
                             <input type="text" id="id_document_other" name="id_document_other"
                                    class="form-control @error('id_document_other') is-invalid @enderror"
-                                   value="{{ old('id_document_other') }}" placeholder="Document name">
+                                   value="{{ old('id_document_other', $booking?->id_document_other) }}" placeholder="Document name">
                             @error('id_document_other') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
+                    </div>
+
+                    {{-- ID document number --}}
+                    <div class="mb-3">
+                        <label for="id_document_number" class="form-label fw-semibold">
+                            <span id="id_number_label">ID Document</span> Number
+                        </label>
+                        <input type="text" id="id_document_number" name="id_document_number"
+                               class="form-control text-uppercase @error('id_document_number') is-invalid @enderror"
+                               value="{{ old('id_document_number', $booking?->id_document_number) }}"
+                               placeholder="As shown on the document" required>
+                        @error('id_document_number') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
                     {{-- Card number + mobile --}}
@@ -94,7 +134,7 @@
                             </label>
                             <input type="tel" id="visitor_mobile_number" name="visitor_mobile_number"
                                    class="form-control @error('visitor_mobile_number') is-invalid @enderror"
-                                   value="{{ old('visitor_mobile_number') }}" placeholder="07XX XXX XXX">
+                                   value="{{ old('visitor_mobile_number', $booking?->visitor_mobile_number) }}" placeholder="07XX XXX XXX">
                             @error('visitor_mobile_number') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     </div>
@@ -129,5 +169,14 @@
 
     toggleOther('purpose', 'purpose_other_wrap', 'purpose_other');
     toggleOther('id_document_type', 'id_other_wrap', 'id_document_other');
+
+    // The ID number label follows the chosen document type.
+    const idType = document.getElementById('id_document_type');
+    const idLabel = document.getElementById('id_number_label');
+    function updateIdLabel() {
+        idLabel.textContent = idType.value === 'Other' ? 'ID Document' : idType.value;
+    }
+    idType.addEventListener('change', updateIdLabel);
+    updateIdLabel();
 </script>
 @endsection

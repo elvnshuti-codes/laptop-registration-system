@@ -2,19 +2,74 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\VisitorBooking;
 use App\Models\VisitorVisit;
+use App\Models\VisitPurpose;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class GateController extends Controller
 {
     // --- Check-in ---------------------------------------------------------
 
-    // Shows the Gate check-in form.
-    public function create()
+    // Returns a plain-language reason why a booking cannot be used today,
+    // or null when it is fine.
+    private function bookingProblem(?VisitorBooking $booking): ?string
     {
-        return view('gate.create');
+        if (! $booking) {
+            return 'No booking found with that code. Check it and try again.';
+        }
+        if ($booking->status === 'cancelled') {
+            return "Booking {$booking->booking_code} was cancelled.";
+        }
+        if ($booking->status === 'arrived') {
+            return "Booking {$booking->booking_code} has already been used.";
+        }
+        if ($booking->expected_date->isBefore(today())) {
+            return "Booking {$booking->booking_code} has expired (it was for {$booking->expected_date->format('d M Y')}).";
+        }
+        if ($booking->expected_date->isAfter(today())) {
+            return "Booking {$booking->booking_code} is for {$booking->expected_date->format('d M Y')}, not today.";
+        }
+
+        return null;
+    }
+
+    // Shows the Gate check-in form. With ?booking=CODE the form is pre-filled.
+    public function create(Request $request)
+    {
+        $booking = null;
+
+        if ($request->filled('booking')) {
+            $booking = VisitorBooking::where('booking_code', strtoupper(trim($request->input('booking'))))->first();
+
+            if ($problem = $this->bookingProblem($booking)) {
+                return redirect()->route('gate.create')->with('error', $problem);
+            }
+        }
+
+        $purposes = VisitPurpose::options();
+
+        return view('gate.create', compact('booking', 'purposes'));
+    }
+
+    // Scan or type a booking code to open the check-in form pre-filled.
+    public function bookingLookup(Request $request)
+    {
+        $request->validate(['booking_code' => 'required|string|max:50']);
+
+        $code = strtoupper(trim($request->input('booking_code')));
+        $booking = VisitorBooking::where('booking_code', $code)->first();
+
+        if ($problem = $this->bookingProblem($booking)) {
+            return back()->withInput()->withErrors(['booking_code' => $problem]);
+        }
+
+        return redirect()->route('gate.create', ['booking' => $booking->booking_code]);
     }
 
     // Handles form submission: validates, generates the ticket number
@@ -23,15 +78,30 @@ class GateController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'purpose' => 'required|string|max:255',
+            'purpose' => ['required', 'string', 'max:255', Rule::exists('visit_purposes', 'name')],
             'purpose_other' => 'nullable|string|max:255',
-            'id_document_type' => 'required|string|max:255',
-            'id_document_other' => 'nullable|string|max:255',
+            'id_document_type' => ['required', Rule::in(['National ID', 'Passport', 'Driving Permit', 'Other'])],
+            'id_document_other' => 'nullable|required_if:id_document_type,Other|string|max:255',
+            'id_document_number' => 'required|string|max:50',
             'visitor_card_number' => 'required|string|max:255',
             'visitor_mobile_number' => 'nullable|string|max:20',
+            'booking_id' => 'nullable|exists:visitor_bookings,id',
         ]);
 
+        $validated['id_document_number'] = strtoupper(trim($validated['id_document_number']));
+
         $visit = DB::transaction(function () use ($validated) {
+            // If this visitor came with a booking, lock it and re-check it,
+            // so one booking can never be used twice.
+            $booking = null;
+            if (! empty($validated['booking_id'])) {
+                $booking = VisitorBooking::lockForUpdate()->find($validated['booking_id']);
+
+                if ($problem = $this->bookingProblem($booking)) {
+                    throw ValidationException::withMessages(['booking_id' => $problem]);
+                }
+            }
+
             $today = now()->toDateString();
 
             // Make sure today's counter row exists (the unique ticket_date index
@@ -57,11 +127,21 @@ class GateController extends Controller
 
             $visitCode = sprintf('UNBS/V%03d/%s-%s', $nextNumber, now()->format('D'), strtoupper(now()->format('dMy')));
 
-            return VisitorVisit::create([
-                ...$validated,
+            $visit = VisitorVisit::create([
+                ...Arr::except($validated, ['booking_id']),
                 'visit_code' => $visitCode,
                 'gate_checked_in_at' => now(),
             ]);
+
+            if ($booking) {
+                $booking->update([
+                    'status' => 'arrived',
+                    'arrived_at' => now(),
+                    'visitor_visit_id' => $visit->id,
+                ]);
+            }
+
+            return $visit;
         });
 
         return redirect()

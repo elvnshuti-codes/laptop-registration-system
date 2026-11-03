@@ -40,6 +40,7 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage gate visi
     Route::get('/gate/create', [GateController::class, 'create'])->name('gate.create');
     Route::post('/gate', [GateController::class, 'store'])->name('gate.store');
     Route::get('/gate/{visit}/ticket', [GateController::class, 'ticket'])->name('gate.ticket');
+    Route::get('/gate/booking/lookup', [GateController::class, 'bookingLookup'])->name('gate.booking.lookup');
 
     Route::get('/gate/checkout', [GateController::class, 'checkoutIndex'])->name('gate.checkout.index');
     Route::get('/gate/checkout/lookup', [GateController::class, 'checkoutLookup'])->name('gate.checkout.lookup');

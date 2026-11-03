@@ -15,6 +15,8 @@ class VisitorVisit extends Model
         'purpose_other',
         'id_document_type',
         'id_document_other',
+        'id_document_number',
+        'visitor_mobile_number',
         'visitor_card_number',
         'gate_checked_in_at',
         'gate_checked_out_at',

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'UNBS Laptop & Visitor Management System')</title>
+    <title>@yield('title', 'UNBS  Visitor  Management System')</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 </head>
@@ -12,7 +12,7 @@
     @auth
     <nav class="navbar navbar-expand navbar-dark bg-dark mb-4">
         <div class="container">
-            <span class="navbar-brand">UNBS Laptop & Visitor Management System</span>
+            <span class="navbar-brand">UNBS  Visitor  Management System</span>
 
             <ul class="navbar-nav me-auto">
                 @can('view registrations')
@@ -53,6 +53,10 @@
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('labels.*') ? 'active' : '' }}"
                            href="{{ route('labels.index') }}">Labels</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('admin.purposes.*') ? 'active' : '' }}"
+                           href="{{ route('admin.purposes.index') }}">Purposes</a>
                     </li>
                 @endrole
             </ul>

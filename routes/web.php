@@ -8,7 +8,9 @@ use App\Http\Controllers\GateController;
 use App\Http\Controllers\LabelController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\ReceptionController;
+use App\Http\Controllers\ReceptionBookingController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\VisitPurposeController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -66,11 +68,23 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage visitor r
     Route::get('/reception/visits/{visit}', [ReceptionController::class, 'show'])->name('reception.visits.show');
     Route::post('/reception/visits/{visit}', [ReceptionController::class, 'store'])->name('reception.visits.store');
     Route::post('/reception/records/{reception}/served', [ReceptionController::class, 'markServed'])->name('reception.served');
+
+    // Pre-booking (create must come before {booking})
+    Route::get('/reception/bookings', [ReceptionBookingController::class, 'index'])->name('reception.bookings.index');
+    Route::get('/reception/bookings/create', [ReceptionBookingController::class, 'create'])->name('reception.bookings.create');
+    Route::post('/reception/bookings', [ReceptionBookingController::class, 'store'])->name('reception.bookings.store');
+    Route::get('/reception/bookings/{booking}', [ReceptionBookingController::class, 'show'])->name('reception.bookings.show');
+    Route::post('/reception/bookings/{booking}/cancel', [ReceptionBookingController::class, 'cancel'])->name('reception.bookings.cancel');
 });
 
-// --- Barcode labels: Administrator only ---
+// --- Administrator only: barcode labels and the admin console ---
 Route::middleware(['auth', 'role:Administrator'])->group(function () {
     Route::get('/labels', [LabelController::class, 'index'])->name('labels.index');
     Route::post('/labels/stickers', [LabelController::class, 'generateStickers'])->name('labels.stickers.generate');
     Route::get('/labels/stickers/sheet', [LabelController::class, 'stickerSheet'])->name('labels.stickers.sheet');
+
+    Route::get('/admin/purposes', [VisitPurposeController::class, 'index'])->name('admin.purposes.index');
+    Route::post('/admin/purposes', [VisitPurposeController::class, 'store'])->name('admin.purposes.store');
+    Route::put('/admin/purposes/{purpose}', [VisitPurposeController::class, 'update'])->name('admin.purposes.update');
+    Route::delete('/admin/purposes/{purpose}', [VisitPurposeController::class, 'destroy'])->name('admin.purposes.destroy');
 });

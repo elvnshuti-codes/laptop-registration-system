@@ -3,6 +3,11 @@
 @section('title', 'Reception')
 
 @section('content')
+<div class="d-flex justify-content-end mb-3">
+    <a href="{{ route('reception.bookings.index') }}" class="btn btn-outline-primary me-2">Bookings</a>
+    <a href="{{ route('reception.bookings.create') }}" class="btn btn-warning">Pre-book a visitor</a>
+</div>
+
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body p-4">
         <h5>Scan the visitor's ticket</h5>

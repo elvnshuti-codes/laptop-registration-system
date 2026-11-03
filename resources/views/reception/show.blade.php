@@ -120,7 +120,7 @@
                                     <th>Meeting with</th>
                                     <th>Received by</th>
                                     <th>Time</th>
-                                    <th class="text-end">Status</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -130,12 +130,21 @@
                                         <td>{{ $record->meeting_with ?? '—' }}</td>
                                         <td>{{ $record->receivedBy->name ?? '—' }}</td>
                                         <td>{{ $record->created_at->format('d M, H:i') }}</td>
-                                        <td class="text-end">
+                                        <td style="min-width: 220px;">
                                             @if ($record->served)
                                                 <span class="badge bg-success">Served</span>
+                                                @if ($record->served_at)
+                                                    <div class="small text-muted">{{ \Carbon\Carbon::parse($record->served_at)->format('d M, H:i') }}</div>
+                                                @endif
+                                                @if ($record->note)
+                                                    <div class="small mt-1">{{ $record->note }}</div>
+                                                @endif
                                             @else
-                                                <form method="POST" action="{{ route('reception.served', $record) }}" class="d-inline">
+                                                <form method="POST" action="{{ route('reception.served', $record) }}">
                                                     @csrf
+                                                    <input type="text" name="note" maxlength="500"
+                                                           class="form-control form-control-sm mb-1"
+                                                           placeholder="Note (optional)">
                                                     <button type="submit" class="btn btn-sm btn-success">Mark served</button>
                                                 </form>
                                             @endif

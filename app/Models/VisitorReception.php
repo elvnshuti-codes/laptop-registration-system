@@ -12,6 +12,7 @@ class VisitorReception extends Model
         'meeting_with',
         'purpose_confirmed',
         'served',
+        'served_at',
         'received_by',
     ];
 

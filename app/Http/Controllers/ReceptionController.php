@@ -92,14 +92,22 @@ class ReceptionController extends Controller
             ->with('success', "{$visit->name} received.");
     }
 
-    // Marks one reception record as served.
-    public function markServed(VisitorReception $reception)
+    // Marks one reception record as served, with an optional note and the time.
+    public function markServed(Request $request, VisitorReception $reception)
     {
         if ($reception->served) {
             return back()->with('error', 'That visit is already marked as served.');
         }
 
-        $reception->update(['served' => true]);
+        $validated = $request->validate([
+            'note' => 'nullable|string|max:500',
+        ]);
+
+        $reception->update([
+            'served' => true,
+            'served_at' => now(),
+            'note' => $validated['note'] ?? null,
+        ]);
 
         return back()->with('success', 'Marked as served.');
     }

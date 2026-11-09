@@ -23,7 +23,10 @@ class VisitPurposeController extends Controller
             'name' => 'required|string|max:100|unique:visit_purposes,name',
         ]);
 
-        VisitPurpose::create(['name' => $validated['name']]);
+        VisitPurpose::create([
+            'name' => $validated['name'],
+            'is_testing' => $request->boolean('is_testing'),
+        ]);
 
         return back()->with('success', "Purpose \"{$validated['name']}\" added.");
     }
@@ -40,7 +43,10 @@ class VisitPurposeController extends Controller
             'name' => ['required', 'string', 'max:100', Rule::unique('visit_purposes', 'name')->ignore($purpose->id)],
         ]);
 
-        $purpose->update(['name' => $validated['name']]);
+        $purpose->update([
+            'name' => $validated['name'],
+            'is_testing' => $request->boolean('is_testing'),
+        ]);
 
         return back()->with('success', 'Purpose updated. Existing visits and bookings keep their original wording.');
     }

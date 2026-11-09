@@ -88,6 +88,10 @@ class AuthController extends Controller
             if ($user->can('manage visitor reception')) {
                 return redirect()->route('reception.index');
             }
+            
+            if ($user->can('manage sample reception')) {
+                return redirect()->route('sample.index');
+            }
         }
 
         return redirect()->route('registrations.index');

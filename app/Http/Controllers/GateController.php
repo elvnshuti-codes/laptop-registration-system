@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SampleType;
 use App\Models\VisitorBooking;
 use App\Models\VisitorVisit;
 use App\Models\VisitPurpose;
@@ -14,6 +15,14 @@ use Illuminate\Validation\ValidationException;
 
 class GateController extends Controller
 {
+    // How a Testing visitor's samples reached the premises.
+    public const DELIVERED_BY = [
+        'Owner' => 'Owner (brings own samples)',
+        'Company representative' => 'Representative from the company',
+        'Delivery person' => 'Delivery person (e.g. boda boda)',
+        'Delivery company' => 'Delivery company / courier',
+    ];
+
     // --- Check-in ---------------------------------------------------------
 
     // Returns a plain-language reason why a booking cannot be used today,
@@ -53,8 +62,11 @@ class GateController extends Controller
         }
 
         $purposes = VisitPurpose::options();
+        $testingPurposes = VisitPurpose::testingNames();
+        $sampleTypes = SampleType::options();
+        $deliveredBy = self::DELIVERED_BY;
 
-        return view('gate.create', compact('booking', 'purposes'));
+        return view('gate.create', compact('booking', 'purposes', 'testingPurposes', 'sampleTypes', 'deliveredBy'));
     }
 
     // Scan or type a booking code to open the check-in form pre-filled.
@@ -72,11 +84,22 @@ class GateController extends Controller
         return redirect()->route('gate.create', ['booking' => $booking->booking_code]);
     }
 
-    // Handles form submission: validates, generates the ticket number
+        // Handles form submission: validates, generates the ticket number
     // inside a locked transaction, and creates the visit.
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        // Is this visitor bringing samples? Decided by the purpose's Sample Reception switch.
+        $isTesting = VisitPurpose::testingNames()->contains($request->input('purpose'));
+
+        // If the owner is delivering, their own mobile is the owner's phone: no need to type it twice.
+        if ($isTesting
+            && $request->input('delivered_by_type') === 'Owner'
+            && blank($request->input('sample_owner_phone'))
+            && filled($request->input('visitor_mobile_number'))) {
+            $request->merge(['sample_owner_phone' => $request->input('visitor_mobile_number')]);
+        }
+
+        $rules = [
             'name' => 'required|string|max:255',
             'purpose' => ['required', 'string', 'max:255', Rule::exists('visit_purposes', 'name')],
             'purpose_other' => 'nullable|string|max:255',
@@ -86,11 +109,61 @@ class GateController extends Controller
             'visitor_card_number' => 'required|string|max:255',
             'visitor_mobile_number' => 'nullable|string|max:20',
             'booking_id' => 'nullable|exists:visitor_bookings,id',
+        ];
+
+        // Sample details are only required for Testing visitors.
+        if ($isTesting) {
+            $rules += [
+                'samples' => 'required|array|min:1|max:10',
+                'samples.*.type' => ['required', 'distinct', Rule::exists('sample_types', 'name')],
+                'samples.*.count' => 'required|integer|min:1|max:9999',
+                'sample_owner_name' => 'nullable|string|max:255',
+                'sample_owner_company' => 'required|string|max:255',
+                'sample_owner_tin' => 'nullable|string|max:30',
+                'sample_owner_phone' => 'nullable|required_without:sample_owner_email|string|max:20',
+                'sample_owner_email' => 'nullable|email|max:255',
+                'sample_prn' => 'nullable|string|max:50',
+                'delivered_by_type' => ['required', Rule::in(array_keys(self::DELIVERED_BY))],
+                'delivered_by_company' => 'nullable|required_if:delivered_by_type,Company representative,Delivery company|string|max:255',
+            ];
+                        // The person delivering must always be reachable.
+                        $rules['visitor_mobile_number'] = 'required|string|max:20';
+        }
+
+        $validated = $request->validate($rules, [
+            'sample_owner_phone.required_without' => "Enter the owner's phone number or email (at least one is needed).",
+            'samples.required' => 'Add at least one sample type.',
+            'samples.*.type.required' => 'Choose a sample type for every row.',
+            'samples.*.type.distinct' => 'Each sample type can only be listed once.',
+            'samples.*.count.required' => 'Enter the number of samples for every row.',
+            'visitor_mobile_number.required' => 'Enter the mobile number of the person delivering the samples.',
+
         ]);
-
+            // The sample rows are saved in their own table, not on the visit.
+        $samples = $validated['samples'] ?? [];
+        unset($validated['samples']);
         $validated['id_document_number'] = strtoupper(trim($validated['id_document_number']));
+        $validated['for_sample_reception'] = $isTesting;
 
-        $visit = DB::transaction(function () use ($validated) {
+        if ($isTesting) {
+            $validated['sample_prn'] = strtoupper(trim($validated['sample_prn']));
+
+            if (! empty($validated['sample_prn'])) {
+                $validated['sample_prn'] = strtoupper(trim($validated['sample_prn']));
+            }
+
+            // The person at the gate is the owner: no need to type the name twice.
+            if ($validated['delivered_by_type'] === 'Owner') {
+                $validated['sample_owner_name'] = $validated['sample_owner_name'] ?? $validated['name'];
+                $validated['delivered_by_company'] = null;
+            }
+            // A delivery person on their own has no company to record.
+            if ($validated['delivered_by_type'] === 'Delivery person') {
+                $validated['delivered_by_company'] = null;
+            }
+        }
+
+        $visit = DB::transaction(function () use ($validated, $samples) {
             // If this visitor came with a booking, lock it and re-check it,
             // so one booking can never be used twice.
             $booking = null;
@@ -132,6 +205,12 @@ class GateController extends Controller
                 'visit_code' => $visitCode,
                 'gate_checked_in_at' => now(),
             ]);
+            foreach ($samples as $row) {
+                $visit->samples()->create([
+                    'sample_type' => $row['type'],
+                    'sample_count' => $row['count'],
+                ]);
+            }
 
             if ($booking) {
                 $booking->update([

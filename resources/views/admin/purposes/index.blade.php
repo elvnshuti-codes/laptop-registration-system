@@ -6,9 +6,12 @@
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="card shadow-sm border-0">
-            <div class="card-header bg-dark text-white py-3">
-                <h4 class="mb-0">Purposes of Visit</h4>
-                <small class="opacity-75">These appear in the Gate and booking forms</small>
+            <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="mb-0">Purposes of Visit</h4>
+                    <small class="opacity-75">These appear in the Gate and booking forms</small>
+                </div>
+                <a href="{{ route('admin.sample-types.index') }}" class="btn btn-sm btn-outline-light">Sample types &rarr;</a>
             </div>
 
             <div class="card-body p-4">
@@ -31,6 +34,10 @@
                                placeholder="e.g. Training" required>
                         <button type="submit" class="btn btn-primary">Add</button>
                     </div>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" name="is_testing" value="1" id="new-testing">
+                        <label class="form-check-label" for="new-testing">Visitors with this purpose go to Sample Reception</label>
+                    </div>
                 </form>
 
                 <table class="table align-middle">
@@ -48,11 +55,16 @@
                                     <td class="text-end text-muted small">Cannot be changed</td>
                                 @else
                                     <td>
-                                        <form method="POST" action="{{ route('admin.purposes.update', $purpose) }}" class="d-flex gap-2">
+                                        <form method="POST" action="{{ route('admin.purposes.update', $purpose) }}" class="d-flex gap-2 align-items-center">
                                             @csrf
                                             @method('PUT')
                                             <input type="text" name="name" value="{{ $purpose->name }}" maxlength="100"
                                                    class="form-control form-control-sm" required>
+                                            <div class="form-check text-nowrap mb-0">
+                                                <input class="form-check-input" type="checkbox" name="is_testing" value="1"
+                                                       id="testing-{{ $purpose->id }}" @checked($purpose->is_testing)>
+                                                <label class="form-check-label small" for="testing-{{ $purpose->id }}">Sample Reception</label>
+                                            </div>
                                             <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
                                         </form>
                                     </td>

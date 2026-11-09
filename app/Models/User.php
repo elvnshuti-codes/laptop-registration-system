@@ -11,12 +11,15 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'must_change_password', 'password_changed_at'])]
+#[Fillable(['name', 'email', 'location', 'password', 'must_change_password', 'password_changed_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasRoles;
+
+    // Where an Entry Officer works.
+    public const LOCATIONS = ['Standard House', 'Sample House'];
     /**
      * Get the attributes that should be cast.
      *

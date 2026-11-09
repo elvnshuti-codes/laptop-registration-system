@@ -18,6 +18,43 @@ class EntryController extends Controller
         return view('entry.index');
     }
 
+    // --- Location ---------------------------------------------------------
+
+    // Which visitors may this officer handle?
+    // true = Sample House (Testing visitors), false = Standard House, null = Administrator (both).
+    private function forSampleHouse(): ?bool
+    {
+        $user = auth()->user();
+
+        if ($user->hasRole('Administrator')) {
+            return null;
+        }
+
+        return $user->location === 'Sample House';
+    }
+
+    // A clear message when the visitor belongs to the other building, otherwise null.
+    private function locationMismatch(VisitorVisit $visit): ?string
+    {
+        $mine = $this->forSampleHouse();
+
+        if ($mine === null || (bool) $visit->for_sample_reception === $mine) {
+            return null;
+        }
+
+        return $visit->for_sample_reception
+            ? 'This visitor is for the Sample House, not Standard House.'
+            : 'This visitor is for Standard House, not the Sample House.';
+    }
+
+    // Blocks a hand-typed address for a visitor of the other location.
+    private function guardLocation(VisitorVisit $visit): void
+    {
+        if ($message = $this->locationMismatch($visit)) {
+            abort(403, $message);
+        }
+    }
+
     // Finds a visitor currently on site from a scanned or typed visit code.
     private function findOnSiteVisit(string $code): ?VisitorVisit
     {
@@ -42,12 +79,18 @@ class EntryController extends Controller
             return back()->withInput()->withErrors(['code' => self::NOT_FOUND]);
         }
 
+        if ($message = $this->locationMismatch($visit)) {
+            return back()->withInput()->withErrors(['code' => $message]);
+        }
+
         return redirect()->route('entry.visits.show', $visit);
     }
 
     // Visitor page: details, devices, and the register-device form.
     public function show(VisitorVisit $visit)
     {
+        $this->guardLocation($visit);
+
         $visit->load('devices');
 
         return view('entry.show', compact('visit'));
@@ -56,6 +99,8 @@ class EntryController extends Controller
     // Registers one device: validates the scanned sticker, makes the device code, saves.
     public function storeDevice(Request $request, VisitorVisit $visit)
     {
+        $this->guardLocation($visit);
+
         if ($visit->gate_checked_out_at) {
             return back()->with('error', 'This visitor has already checked out at the gate.');
         }
@@ -123,6 +168,8 @@ class EntryController extends Controller
     // Records that the visitor arrived with no device.
     public function noDevice(VisitorVisit $visit)
     {
+        $this->guardLocation($visit);
+
         if ($visit->devices()->exists()) {
             return back()->with('error', 'This visitor already has a device registered.');
         }
@@ -147,12 +194,18 @@ class EntryController extends Controller
             return back()->withInput()->withErrors(['checkout_code' => self::NOT_FOUND]);
         }
 
+        if ($message = $this->locationMismatch($visit)) {
+            return back()->withInput()->withErrors(['checkout_code' => $message]);
+        }
+
         return redirect()->route('entry.visits.checkout', $visit);
     }
 
     // Shows the visitor's devices and asks for a sticker scan.
     public function checkoutShow(VisitorVisit $visit)
     {
+        $this->guardLocation($visit);
+
         $visit->load('devices');
 
         return view('entry.checkout', compact('visit'));
@@ -161,6 +214,8 @@ class EntryController extends Controller
     // Verifies the scanned sticker belongs to THIS visitor, then checks the device out.
     public function checkoutDevice(Request $request, VisitorVisit $visit)
     {
+        $this->guardLocation($visit);
+
         $request->merge(['sticker_code' => strtoupper(trim((string) $request->input('sticker_code')))]);
         $request->validate(['sticker_code' => 'required|string|max:100']);
 

@@ -116,6 +116,12 @@
                            href="{{ route('reception.index') }}">Reception</a>
                     </li>
                 @endcan
+                @can('manage sample reception')
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('sample.*') ? 'active' : '' }}"
+                           href="{{ route('sample.index') }}">Samples</a>
+                    </li>
+                @endcan
                 @role('Administrator')
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('labels.*') ? 'active' : '' }}"

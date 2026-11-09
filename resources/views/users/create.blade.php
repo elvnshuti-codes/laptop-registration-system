@@ -46,7 +46,33 @@
             @enderror
         </div>
 
+        <div class="mb-3" id="location_wrap">
+            <label class="form-label">Location <span class="text-muted">(Entry Officers only)</span></label>
+            <select name="location" class="form-select @error('location') is-invalid @enderror">
+                <option value="">-- Select a location --</option>
+                @foreach (\App\Models\User::LOCATIONS as $location)
+                    <option value="{{ $location }}" {{ old('location') == $location ? 'selected' : '' }}>{{ $location }}</option>
+                @endforeach
+            </select>
+            @error('location')
+                <div class="text-danger">{{ $message }}</div>
+            @enderror
+        </div>
+
         <button type="submit" class="btn btn-primary">Create User</button>
     </form>
 
 @endsection 
+
+@section('scripts')
+<script>
+    // The Location box only matters for Entry Officers.
+    const roleSelect = document.querySelector('select[name="role"]');
+    const locationWrap = document.getElementById('location_wrap');
+    function toggleLocation() {
+        locationWrap.style.display = roleSelect.value === 'Entry Officer' ? '' : 'none';
+    }
+    roleSelect.addEventListener('change', toggleLocation);
+    toggleLocation();
+</script>
+@endsection

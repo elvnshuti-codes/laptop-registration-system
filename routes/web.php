@@ -11,6 +11,8 @@ use App\Http\Controllers\ReceptionController;
 use App\Http\Controllers\ReceptionBookingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\VisitPurposeController;
+use App\Http\Controllers\SampleTypeController;
+use App\Http\Controllers\SampleReceptionController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -41,7 +43,7 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage gate visi
     Route::post('/gate', [GateController::class, 'store'])->name('gate.store');
     Route::get('/gate/{visit}/ticket', [GateController::class, 'ticket'])->name('gate.ticket');
     Route::get('/gate/booking/lookup', [GateController::class, 'bookingLookup'])->name('gate.booking.lookup');
-
+ 
     Route::get('/gate/checkout', [GateController::class, 'checkoutIndex'])->name('gate.checkout.index');
     Route::get('/gate/checkout/lookup', [GateController::class, 'checkoutLookup'])->name('gate.checkout.lookup');
     Route::get('/gate/{visit}/checkout', [GateController::class, 'checkoutShow'])->name('gate.checkout.show');
@@ -76,6 +78,14 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage visitor r
     Route::post('/reception/bookings', [ReceptionBookingController::class, 'store'])->name('reception.bookings.store');
     Route::get('/reception/bookings/{booking}', [ReceptionBookingController::class, 'show'])->name('reception.bookings.show');
     Route::post('/reception/bookings/{booking}/cancel', [ReceptionBookingController::class, 'cancel'])->name('reception.bookings.cancel');
+   
+    });
+// --- Sample Reception ---
+    Route::middleware(['auth', 'force.password.change', 'permission:manage sample reception'])->group(function () {
+    Route::get('/sample-reception', [SampleReceptionController::class, 'index'])->name('sample.index');
+    Route::post('/sample-reception/lookup', [SampleReceptionController::class, 'lookup'])->name('sample.lookup');
+    Route::get('/sample-reception/visits/{visit}', [SampleReceptionController::class, 'show'])->name('sample.visits.show');
+    Route::post('/sample-reception/visits/{visit}/served', [SampleReceptionController::class, 'serve'])->name('sample.visits.serve');
 });
 
 // --- Administrator only: barcode labels and the admin console ---
@@ -88,4 +98,8 @@ Route::middleware(['auth', 'role:Administrator'])->group(function () {
     Route::post('/admin/purposes', [VisitPurposeController::class, 'store'])->name('admin.purposes.store');
     Route::put('/admin/purposes/{purpose}', [VisitPurposeController::class, 'update'])->name('admin.purposes.update');
     Route::delete('/admin/purposes/{purpose}', [VisitPurposeController::class, 'destroy'])->name('admin.purposes.destroy');
+    Route::get('/admin/sample-types', [SampleTypeController::class, 'index'])->name('admin.sample-types.index');
+    Route::post('/admin/sample-types', [SampleTypeController::class, 'store'])->name('admin.sample-types.store');
+    Route::put('/admin/sample-types/{sampleType}', [SampleTypeController::class, 'update'])->name('admin.sample-types.update');
+    Route::delete('/admin/sample-types/{sampleType}', [SampleTypeController::class, 'destroy'])->name('admin.sample-types.destroy');
 });

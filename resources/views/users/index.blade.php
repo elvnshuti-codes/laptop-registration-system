@@ -12,6 +12,7 @@
                 <th>Name</th>
                 <th>Email</th>
                 <th>Role(s)</th>
+                <th>Location</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -26,6 +27,13 @@
                         @empty
                             <span class="text-muted">No role assigned</span>
                         @endforelse
+                    </td>
+                    <td>
+                        @if ($user->hasRole('Entry Officer'))
+                            {{ $user->location ?? 'Standard House' }}
+                        @else
+                            <span class="text-muted">&mdash;</span>
+                        @endif
                     </td>
                     <td>
     <a href="{{ route('users.edit', $user) }}" class="btn btn-sm btn-outline-primary">Edit</a>

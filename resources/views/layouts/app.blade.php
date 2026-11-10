@@ -123,13 +123,15 @@
                     </li>
                 @endcan
                 @role('Administrator')
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('labels.*') ? 'active' : '' }}"
-                           href="{{ route('labels.index') }}">Labels</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('admin.purposes.*') ? 'active' : '' }}"
-                           href="{{ route('admin.purposes.index') }}">Purposes</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {{ request()->routeIs('labels.*', 'admin.*') ? 'active' : '' }}"
+                           href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Admin</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ route('labels.index') }}">Labels</a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.purposes.index') }}">Purposes</a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.sample-types.index') }}">Sample types</a></li>
+                            <li><a class="dropdown-item" href="{{ route('admin.reasons.index') }}">Unserved reasons</a></li>
+                        </ul>
                     </li>
                 @endrole
             </ul>

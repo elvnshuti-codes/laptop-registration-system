@@ -8,8 +8,11 @@ class UnservedReason extends Model
 {
     protected $fillable = ['name', 'requires_note', 'is_system'];
 
-    protected $casts = [
-        'requires_note' => 'boolean',
-        'is_system' => 'boolean',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'requires_note' => 'boolean',
+            'is_system' => 'boolean',
+        ];
+    }
 }

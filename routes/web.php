@@ -13,6 +13,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\VisitPurposeController;
 use App\Http\Controllers\SampleTypeController;
 use App\Http\Controllers\SampleReceptionController;
+use App\Http\Controllers\UnservedReasonController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -112,4 +113,9 @@ Route::middleware(['auth', 'role:Administrator'])->group(function () {
     Route::post('/admin/sample-types', [SampleTypeController::class, 'store'])->name('admin.sample-types.store');
     Route::put('/admin/sample-types/{sampleType}', [SampleTypeController::class, 'update'])->name('admin.sample-types.update');
     Route::delete('/admin/sample-types/{sampleType}', [SampleTypeController::class, 'destroy'])->name('admin.sample-types.destroy');
+
+    Route::get('/admin/reasons', [UnservedReasonController::class, 'index'])->name('admin.reasons.index');
+    Route::post('/admin/reasons', [UnservedReasonController::class, 'store'])->name('admin.reasons.store');
+    Route::put('/admin/reasons/{reason}', [UnservedReasonController::class, 'update'])->name('admin.reasons.update');
+    Route::delete('/admin/reasons/{reason}', [UnservedReasonController::class, 'destroy'])->name('admin.reasons.destroy');
 });

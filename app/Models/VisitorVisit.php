@@ -31,8 +31,10 @@ class VisitorVisit extends Model
         'gate_checked_out_at',
         'no_device_confirmed_at',
         'document_returned_at',
+        'entry_cleared_at',
+        'entry_cleared_by',
     ];
-    
+
     protected $casts = [
         'for_sample_reception' => 'boolean',
     ];
@@ -48,15 +50,58 @@ class VisitorVisit extends Model
     {
         return $this->hasMany(VisitorReception::class);
     }
-        // The sample types and counts a Testing visitor brought.
-        public function samples()
-        {
-            return $this->hasMany(VisitorSample::class);
-        }
-            // Set once Sample Reception has served this visitor.
-       
-            public function sampleReception()
-        {
+
+    // The sample types and counts a Testing visitor brought.
+    public function samples()
+    {
+        return $this->hasMany(VisitorSample::class);
+    }
+
+    // Set once Sample Reception has served this visitor.
+    public function sampleReception()
+    {
         return $this->hasOne(SampleReception::class);
+    }
+
+    // Exceptions recorded against this visit (sent back, left unserved, skipped Entry).
+    public function exceptions()
+    {
+        return $this->hasMany(VisitException::class);
+    }
+
+    // Has this visitor been served by THEIR reception?
+    public function isServed(): bool
+    {
+        return $this->for_sample_reception
+            ? $this->sampleReception()->exists()
+            : $this->receptions()->whereNotNull('served_at')->exists();
+    }
+
+    // Served, or Entry has recorded why the visitor is leaving without being served.
+    public function exitApproved(): bool
+    {
+        return $this->isServed() || $this->exceptions()->where('type', 'left_unserved')->exists();
+    }
+
+    // Where is this visitor right now? One word the dashboards can show.
+    public function stage(): string
+    {
+        if ($this->gate_checked_out_at) {
+            return 'Left';
         }
+        if ($this->entry_cleared_at) {
+            return 'Cleared at Entry';
+        }
+        if ($this->isServed()) {
+            return 'Served';
+        }
+        if (! $this->for_sample_reception && $this->receptions()->exists()) {
+            return 'At Reception';
+        }
+        if ($this->no_device_confirmed_at || $this->devices()->exists()) {
+            return 'Passed Entry';
+        }
+
+        return 'At Gate';
+    }
 }

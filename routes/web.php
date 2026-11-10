@@ -62,6 +62,10 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage visitor d
     Route::get('/entry/checkout/lookup', [EntryController::class, 'checkoutLookup'])->name('entry.checkout.lookup');
     Route::get('/entry/visits/{visit}/checkout', [EntryController::class, 'checkoutShow'])->name('entry.visits.checkout');
     Route::post('/entry/visits/{visit}/checkout', [EntryController::class, 'checkoutDevice'])->name('entry.visits.checkout.device');
+
+    Route::post('/entry/visits/{visit}/clear', [EntryController::class, 'clear'])->name('entry.visits.clear');
+    Route::post('/entry/visits/{visit}/send-back', [EntryController::class, 'sendBack'])->name('entry.visits.send-back');
+    Route::post('/entry/visits/{visit}/unserved', [EntryController::class, 'unserved'])->name('entry.visits.unserved');
 });
 
 // --- Reception, Standard House (Checkpoint 3) ---

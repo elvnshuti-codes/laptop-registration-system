@@ -84,7 +84,7 @@ class GateController extends Controller
         return redirect()->route('gate.create', ['booking' => $booking->booking_code]);
     }
 
-        // Handles form submission: validates, generates the ticket number
+    // Handles form submission: validates, generates the ticket number
     // inside a locked transaction, and creates the visit.
     public function store(Request $request)
     {
@@ -126,8 +126,9 @@ class GateController extends Controller
                 'delivered_by_type' => ['required', Rule::in(array_keys(self::DELIVERED_BY))],
                 'delivered_by_company' => 'nullable|required_if:delivered_by_type,Company representative,Delivery company|string|max:255',
             ];
-                        // The person delivering must always be reachable.
-                        $rules['visitor_mobile_number'] = 'required|string|max:20';
+
+            // The person delivering must always be reachable.
+            $rules['visitor_mobile_number'] = 'required|string|max:20';
         }
 
         $validated = $request->validate($rules, [
@@ -137,17 +138,16 @@ class GateController extends Controller
             'samples.*.type.distinct' => 'Each sample type can only be listed once.',
             'samples.*.count.required' => 'Enter the number of samples for every row.',
             'visitor_mobile_number.required' => 'Enter the mobile number of the person delivering the samples.',
-
         ]);
-            // The sample rows are saved in their own table, not on the visit.
+
+        // The sample rows are saved in their own table, not on the visit.
         $samples = $validated['samples'] ?? [];
         unset($validated['samples']);
+
         $validated['id_document_number'] = strtoupper(trim($validated['id_document_number']));
         $validated['for_sample_reception'] = $isTesting;
 
         if ($isTesting) {
-            $validated['sample_prn'] = strtoupper(trim($validated['sample_prn']));
-
             if (! empty($validated['sample_prn'])) {
                 $validated['sample_prn'] = strtoupper(trim($validated['sample_prn']));
             }
@@ -205,6 +205,7 @@ class GateController extends Controller
                 'visit_code' => $visitCode,
                 'gate_checked_in_at' => now(),
             ]);
+
             foreach ($samples as $row) {
                 $visit->samples()->create([
                     'sample_type' => $row['type'],
@@ -273,6 +274,12 @@ class GateController extends Controller
                 ->withErrors(['code' => 'No visitor on site has that code. Check it and try again.']);
         }
 
+        if (! $visit->entry_cleared_at) {
+            return back()
+                ->withInput()
+                ->withErrors(['code' => "{$visit->name} has not been cleared at Entry. Send the visitor to Entry for device check-out first."]);
+        }
+
         return redirect()->route('gate.checkout.show', $visit);
     }
 
@@ -285,12 +292,19 @@ class GateController extends Controller
                 ->with('error', "{$visit->name} is already checked out.");
         }
 
-        $visit->load('devices');
+        // Strict order: Entry must clear the visitor before the Gate checks them out.
+        if (! $visit->entry_cleared_at) {
+            return redirect()
+                ->route('gate.checkout.index')
+                ->with('error', "{$visit->name} has not been cleared at Entry. Send the visitor to Entry for device check-out first.");
+        }
+
+        $visit->load(['devices', 'exceptions.recordedBy']);
 
         return view('gate.checkout-show', compact('visit'));
     }
 
-    // Final step: two guards, two confirmations, then record the exit.
+    // Final step: guards, two confirmations, then record the exit.
     public function checkout(Request $request, VisitorVisit $visit)
     {
         // Guard 1: already left.
@@ -300,7 +314,12 @@ class GateController extends Controller
                 ->with('error', "{$visit->name} is already checked out.");
         }
 
-        // Guard 2: a device is still checked in on the premises.
+        // Guard 2: Entry must have cleared the visitor (devices out, service decision made).
+        if (! $visit->entry_cleared_at) {
+            return back()->with('error', "{$visit->name} has not been cleared at Entry. Send the visitor to Entry for device check-out first.");
+        }
+
+        // Guard 3: a device is still checked in on the premises.
         if ($visit->devices()->whereNull('device_checked_out_at')->exists()) {
             return back()->with('error', "{$visit->name} still has a device checked in. Check the device out at the Entry checkpoint first.");
         }

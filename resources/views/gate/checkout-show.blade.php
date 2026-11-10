@@ -63,6 +63,8 @@
                         </ul>
                     </div>
                 @endif
+                
+                @include('gate._exit-note', ['visit' => $visit])
 
                 @if ($onSite->isNotEmpty())
                     <div class="alert alert-danger">

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\UnservedReason;
+use App\Models\VisitException;
 use App\Models\VisitorDevice;
 use App\Models\VisitorVisit;
 use Illuminate\Http\Request;
@@ -201,20 +203,32 @@ class EntryController extends Controller
         return redirect()->route('entry.visits.checkout', $visit);
     }
 
-    // Shows the visitor's devices and asks for a sticker scan.
+    // Shows the visitor's devices, their service status, and what Entry can do next.
     public function checkoutShow(VisitorVisit $visit)
     {
         $this->guardLocation($visit);
 
         $visit->load('devices');
 
-        return view('entry.checkout', compact('visit'));
+        $served = $visit->isServed();
+        $approved = $visit->exitApproved();
+        $area = $visit->for_sample_reception ? 'Sample Reception' : 'Standard House Reception';
+        $reasons = UnservedReason::orderBy('is_system')->orderBy('name')->get();
+        $sentBackAt = optional($visit->exceptions()->where('type', 'sent_back')->latest()->first())->created_at;
+        $leftUnserved = $visit->exceptions()->where('type', 'left_unserved')->latest()->first();
+
+        return view('entry.checkout', compact('visit', 'served', 'approved', 'area', 'reasons', 'sentBackAt', 'leftUnserved'));
     }
 
     // Verifies the scanned sticker belongs to THIS visitor, then checks the device out.
     public function checkoutDevice(Request $request, VisitorVisit $visit)
     {
         $this->guardLocation($visit);
+
+        // Devices are released only after Entry has decided about an unserved visitor.
+        if (! $visit->exitApproved()) {
+            return back()->withErrors(['sticker_code' => 'This visitor has not been served. Send them back to Reception, or record why they are leaving, before releasing devices.']);
+        }
 
         $request->merge(['sticker_code' => strtoupper(trim((string) $request->input('sticker_code')))]);
         $request->validate(['sticker_code' => 'required|string|max:100']);
@@ -245,5 +259,153 @@ class EntryController extends Controller
         return redirect()
             ->route('entry.visits.checkout', $visit)
             ->with('success', "Device checked out: {$device->description} ({$device->device_code})");
+    }
+
+    // --- Clearing a visitor for exit --------------------------------------
+
+    // Why Entry cannot clear this visitor right now (null = fine to continue).
+    private function clearanceBlock(VisitorVisit $visit): ?string
+    {
+        if ($visit->gate_checked_out_at) {
+            return "{$visit->name} has already left the premises.";
+        }
+
+        if ($visit->entry_cleared_at) {
+            return "{$visit->name} is already cleared for exit.";
+        }
+
+        return null;
+    }
+
+    // Records the clearance. A visitor who never went through Entry at check-in is logged first.
+    private function clearForExit(VisitorVisit $visit): void
+    {
+        $update = [];
+
+        if (! $visit->no_device_confirmed_at && ! $visit->devices()->exists()) {
+            VisitException::create([
+                'visitor_visit_id' => $visit->id,
+                'type' => 'skipped_entry',
+                'area' => $visit->for_sample_reception ? 'Sample House' : 'Standard House',
+                'reason' => 'Did not go through Entry at check-in',
+                'last_stage' => $visit->stage(),
+                'recorded_by' => auth()->id(),
+            ]);
+
+            $update['no_device_confirmed_at'] = now();
+        }
+
+        $visit->update($update + [
+            'entry_cleared_at' => now(),
+            'entry_cleared_by' => auth()->id(),
+        ]);
+    }
+
+    // Served (or reason recorded) and all devices out: one click releases them to the Gate.
+    public function clear(VisitorVisit $visit)
+    {
+        $this->guardLocation($visit);
+
+        if ($message = $this->clearanceBlock($visit)) {
+            return back()->with('error', $message);
+        }
+
+        if (! $visit->exitApproved()) {
+            return back()->with('error', 'This visitor has not been served. Send them back, or record why they are leaving.');
+        }
+
+        if ($visit->devices()->whereNull('device_checked_out_at')->exists()) {
+            return back()->with('error', 'Release all of the visitor\'s devices first.');
+        }
+
+        $this->clearForExit($visit);
+
+        return redirect()
+            ->route('entry.visits.checkout', $visit)
+            ->with('success', "{$visit->name} cleared. Send the visitor to the Gate to check out.");
+    }
+
+    // Not served: tell the visitor to go back to their reception, and log it.
+    public function sendBack(VisitorVisit $visit)
+    {
+        $this->guardLocation($visit);
+
+        if ($visit->gate_checked_out_at) {
+            return back()->with('error', "{$visit->name} has already left the premises.");
+        }
+
+        if ($visit->isServed()) {
+            return back()->with('error', 'This visitor has already been served.');
+        }
+
+        if ($visit->exceptions()->where('type', 'left_unserved')->exists()) {
+            return back()->with('error', 'A reason for leaving was already recorded for this visitor.');
+        }
+
+        $area = $visit->for_sample_reception ? 'Sample House' : 'Standard House';
+
+        VisitException::create([
+            'visitor_visit_id' => $visit->id,
+            'type' => 'sent_back',
+            'area' => $area,
+            'last_stage' => $visit->stage(),
+            'recorded_by' => auth()->id(),
+        ]);
+
+        $reception = $visit->for_sample_reception ? 'Sample Reception' : 'Standard House Reception';
+
+        return redirect()
+            ->route('entry.visits.checkout', $visit)
+            ->with('success', "Send {$visit->name} to {$reception} to be served.");
+    }
+
+    // Not served and leaving anyway: record the reason and phone check. Devices are released next.
+    public function unserved(Request $request, VisitorVisit $visit)
+    {
+        $this->guardLocation($visit);
+
+        if ($message = $this->clearanceBlock($visit)) {
+            return back()->with('error', $message);
+        }
+
+        if ($visit->isServed()) {
+            return back()->with('error', 'This visitor was served. Use "Clear for Gate exit".');
+        }
+
+        if ($visit->exceptions()->where('type', 'left_unserved')->exists()) {
+            return back()->with('error', 'A reason for leaving was already recorded for this visitor.');
+        }
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', Rule::exists('unserved_reasons', 'name')],
+            'phone_confirmed' => 'accepted',
+            'confirmed_with' => 'nullable|string|max:100',
+            'note' => 'nullable|string|max:500',
+        ], [
+            'reason.required' => 'Choose the reason the visitor did not reach Reception.',
+            'phone_confirmed.accepted' => 'Confirm that you phoned the Reception and verified the reason.',
+        ]);
+
+        $reason = UnservedReason::where('name', $validated['reason'])->first();
+
+        if ($reason->requires_note && blank($validated['note'] ?? null)) {
+            return back()->withInput()->withErrors(['note' => 'Please add a short note for this reason.']);
+        }
+
+        VisitException::create([
+            'visitor_visit_id' => $visit->id,
+            'type' => 'left_unserved',
+            'area' => $visit->for_sample_reception ? 'Sample House' : 'Standard House',
+            'reason' => $validated['reason'],
+            'note' => $validated['note'] ?? null,
+            'phone_confirmed' => true,
+            'confirmed_with' => $validated['confirmed_with'] ?? null,
+            'last_stage' => $visit->stage(),
+            'recorded_by' => auth()->id(),
+        ]);
+
+        return redirect()
+            ->route('entry.visits.checkout', $visit)
+            ->with('success', "Reason recorded for {$visit->name}. Now release the visitor's devices.");
     }
 }

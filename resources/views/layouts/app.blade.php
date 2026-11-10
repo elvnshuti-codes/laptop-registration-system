@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('title', 'UNBS Visitor Management System')</title>
     <link rel="icon" type="image/png" href="{{ asset('images/unbs-logo.png') }}">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="{{ asset('vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('vendor/datatables/dataTables.bootstrap5.min.css') }}" rel="stylesheet">
     <style>
         :root {
             --unbs-blue: #084090;
@@ -156,10 +156,10 @@
         @yield('content')
     </main>
 
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ asset('vendor/jquery/jquery-3.7.1.min.js') }}"></script>
+    <script src="{{ asset('vendor/datatables/jquery.dataTables.min.js') }}"></script>
+    <script src="{{ asset('vendor/datatables/dataTables.bootstrap5.min.js') }}"></script>
+    <script src="{{ asset('vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
 
     @yield('scripts')
 </body>

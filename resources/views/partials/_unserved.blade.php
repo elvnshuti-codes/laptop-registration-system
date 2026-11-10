@@ -13,7 +13,7 @@
                 <tr>
                     <th>Visitor</th>
                     <th>Reason</th>
-                    <th>Phone check</th>
+                    <th>Reception contacted</th>
                     <th>Recorded</th>
                     <th></th>
                 </tr>
@@ -38,9 +38,9 @@
                         </td>
                         <td class="small">
                             @if ($ex->phone_confirmed)
-                                Phoned Reception{{ $ex->confirmed_with ? ' (spoke to ' . $ex->confirmed_with . ')' : '' }}
+                                Contacted Reception{{ $ex->confirmed_with ? ' (spoke to ' . $ex->confirmed_with . ')' : '' }}
                             @else
-                                <span class="text-danger">No phone check</span>
+                                <span class="text-danger">Not confirmed</span>
                             @endif
                         </td>
                         <td class="small">

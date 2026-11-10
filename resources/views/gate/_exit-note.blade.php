@@ -17,8 +17,8 @@
                 <p class="mb-2">Entry note: {{ $left->note }}</p>
             @endif
             <p class="mb-2 small">
-                Phone check with Reception:
-                {{ $left->phone_confirmed ? 'done' : 'not done' }}@if ($left->confirmed_with), spoke to {{ $left->confirmed_with }}@endif.
+                Reception contacted by Entry:
+                {{ $left->phone_confirmed ? 'yes' : 'no' }}@if ($left->confirmed_with), spoke to {{ $left->confirmed_with }}@endif.
                 Recorded by {{ $left->recordedBy->name ?? 'Entry Officer' }} at {{ $left->created_at->format('H:i') }}.
             </p>
         @endif

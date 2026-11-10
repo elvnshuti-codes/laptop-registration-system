@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\UnservedReason;
+use App\Models\User;
 use App\Models\VisitException;
 use App\Models\VisitorDevice;
 use App\Models\VisitorVisit;
@@ -66,6 +67,19 @@ class EntryController extends Controller
         return VisitorVisit::whereNull('gate_checked_out_at')
             ->whereRaw("REPLACE(visit_code, '/', '-') = ?", [$code])
             ->first();
+    }
+
+    // The receptionists Entry may name as "spoke to": the accounts that serve this
+    // visitor's reception, shown exactly as their account names.
+    private function receptionNames(VisitorVisit $visit): array
+    {
+        $permission = $visit->for_sample_reception ? 'manage sample reception' : 'manage visitor reception';
+
+        return User::permission($permission)
+            ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'Administrator'))
+            ->orderBy('name')
+            ->pluck('name')
+            ->all();
     }
 
     // --- Device check-in --------------------------------------------------
@@ -214,10 +228,11 @@ class EntryController extends Controller
         $approved = $visit->exitApproved();
         $area = $visit->for_sample_reception ? 'Sample Reception' : 'Standard House Reception';
         $reasons = UnservedReason::orderBy('is_system')->orderBy('name')->get();
+        $receptionists = $this->receptionNames($visit);
         $sentBackAt = optional($visit->exceptions()->where('type', 'sent_back')->latest()->first())->created_at;
         $leftUnserved = $visit->exceptions()->where('type', 'left_unserved')->latest()->first();
 
-        return view('entry.checkout', compact('visit', 'served', 'approved', 'area', 'reasons', 'sentBackAt', 'leftUnserved'));
+        return view('entry.checkout', compact('visit', 'served', 'approved', 'area', 'reasons', 'receptionists', 'sentBackAt', 'leftUnserved'));
     }
 
     // Verifies the scanned sticker belongs to THIS visitor, then checks the device out.
@@ -359,7 +374,7 @@ class EntryController extends Controller
             ->with('success', "Send {$visit->name} to {$reception} to be served.");
     }
 
-    // Not served and leaving anyway: record the reason and phone check. Devices are released next.
+    // Not served and leaving anyway: record the reason and the Reception contact. Devices are released next.
     public function unserved(Request $request, VisitorVisit $visit)
     {
         $this->guardLocation($visit);
@@ -379,11 +394,13 @@ class EntryController extends Controller
         $validated = $request->validate([
             'reason' => ['required', 'string', Rule::exists('unserved_reasons', 'name')],
             'phone_confirmed' => 'accepted',
-            'confirmed_with' => 'nullable|string|max:100',
+            'confirmed_with' => ['required', 'string', Rule::in($this->receptionNames($visit))],
             'note' => 'nullable|string|max:500',
         ], [
             'reason.required' => 'Choose the reason the visitor did not reach Reception.',
-            'phone_confirmed.accepted' => 'Confirm that you phoned the Reception and verified the reason.',
+            'phone_confirmed.accepted' => 'Confirm that you contacted Reception and verified the reason.',
+            'confirmed_with.required' => 'Choose who you spoke to at Reception.',
+            'confirmed_with.in' => 'Choose a name from the list.',
         ]);
 
         $reason = UnservedReason::where('name', $validated['reason'])->first();
@@ -399,7 +416,7 @@ class EntryController extends Controller
             'reason' => $validated['reason'],
             'note' => $validated['note'] ?? null,
             'phone_confirmed' => true,
-            'confirmed_with' => $validated['confirmed_with'] ?? null,
+            'confirmed_with' => $validated['confirmed_with'],
             'last_stage' => $visit->stage(),
             'recorded_by' => auth()->id(),
         ]);

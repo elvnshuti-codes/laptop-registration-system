@@ -43,7 +43,7 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage gate visi
     Route::post('/gate', [GateController::class, 'store'])->name('gate.store');
     Route::get('/gate/{visit}/ticket', [GateController::class, 'ticket'])->name('gate.ticket');
     Route::get('/gate/booking/lookup', [GateController::class, 'bookingLookup'])->name('gate.booking.lookup');
- 
+
     Route::get('/gate/checkout', [GateController::class, 'checkoutIndex'])->name('gate.checkout.index');
     Route::get('/gate/checkout/lookup', [GateController::class, 'checkoutLookup'])->name('gate.checkout.lookup');
     Route::get('/gate/{visit}/checkout', [GateController::class, 'checkoutShow'])->name('gate.checkout.show');
@@ -76,20 +76,26 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage visitor r
     Route::post('/reception/visits/{visit}', [ReceptionController::class, 'store'])->name('reception.visits.store');
     Route::post('/reception/records/{reception}/served', [ReceptionController::class, 'markServed'])->name('reception.served');
 
+    // NEW: acknowledge a "left without being served" record
+    Route::post('/reception/exceptions/{exception}/acknowledge', [ReceptionController::class, 'acknowledge'])->name('reception.exceptions.acknowledge');
+
     // Pre-booking (create must come before {booking})
     Route::get('/reception/bookings', [ReceptionBookingController::class, 'index'])->name('reception.bookings.index');
     Route::get('/reception/bookings/create', [ReceptionBookingController::class, 'create'])->name('reception.bookings.create');
     Route::post('/reception/bookings', [ReceptionBookingController::class, 'store'])->name('reception.bookings.store');
     Route::get('/reception/bookings/{booking}', [ReceptionBookingController::class, 'show'])->name('reception.bookings.show');
     Route::post('/reception/bookings/{booking}/cancel', [ReceptionBookingController::class, 'cancel'])->name('reception.bookings.cancel');
-   
-    });
+});
+
 // --- Sample Reception ---
-    Route::middleware(['auth', 'force.password.change', 'permission:manage sample reception'])->group(function () {
+Route::middleware(['auth', 'force.password.change', 'permission:manage sample reception'])->group(function () {
     Route::get('/sample-reception', [SampleReceptionController::class, 'index'])->name('sample.index');
     Route::post('/sample-reception/lookup', [SampleReceptionController::class, 'lookup'])->name('sample.lookup');
     Route::get('/sample-reception/visits/{visit}', [SampleReceptionController::class, 'show'])->name('sample.visits.show');
     Route::post('/sample-reception/visits/{visit}/served', [SampleReceptionController::class, 'serve'])->name('sample.visits.serve');
+
+    // NEW: acknowledge a "left without being served" record
+    Route::post('/sample-reception/exceptions/{exception}/acknowledge', [SampleReceptionController::class, 'acknowledge'])->name('sample.exceptions.acknowledge');
 });
 
 // --- Administrator only: barcode labels and the admin console ---

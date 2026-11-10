@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\VisitException;
 use App\Models\VisitorReception;
 use App\Models\VisitorVisit;
 use Illuminate\Http\Request;
@@ -45,7 +46,16 @@ class ReceptionController extends Controller
             ->orderBy('gate_checked_in_at')
             ->get();
 
-        return view('reception.index', compact('visits'));
+        // Standard House visitors Entry recorded as leaving unserved, not yet acknowledged.
+        // These stay listed even after the visitor has left, until someone acknowledges them.
+        $unserved = VisitException::where('type', 'left_unserved')
+            ->whereNull('acknowledged_at')
+            ->whereHas('visit', fn ($q) => $q->where('for_sample_reception', false))
+            ->with(['visit', 'recordedBy'])
+            ->latest()
+            ->get();
+
+        return view('reception.index', compact('visits', 'unserved'));
     }
 
     // Scan or type a visit code to jump to that visitor.
@@ -141,5 +151,23 @@ class ReceptionController extends Controller
         ]);
 
         return back()->with('success', 'Marked as served.');
+    }
+
+    // The receptionist confirms they have seen a "left without being served" record.
+    public function acknowledge(Request $request, VisitException $exception)
+    {
+        abort_unless($exception->type === 'left_unserved', 404);
+        abort_if($exception->visit->for_sample_reception, 403, 'This record belongs to Sample Reception.');
+
+        if ($exception->acknowledged_at) {
+            return back()->with('error', 'That record was already acknowledged.');
+        }
+
+        $exception->update([
+            'acknowledged_by' => $request->user()->id,
+            'acknowledged_at' => now(),
+        ]);
+
+        return back()->with('success', "Acknowledged: {$exception->visit->name}.");
     }
 }

@@ -56,6 +56,8 @@
             </div>
         </div>
 
+        @include('partials._unserved', ['unserved' => $unserved, 'ackRoute' => 'sample.exceptions.acknowledge'])
+
         <div class="card shadow-sm border-0">
             <div class="card-body p-0">
                 <table class="table align-middle mb-0">
@@ -67,11 +69,21 @@
                             <th>Devices</th>
                             <th>Arrived</th>
                             <th>Status</th>
+                            <th>Stage</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($visits as $visit)
+                            @php
+                                $stage = $visit->stage();
+                                $badge = match ($stage) {
+                                    'Cleared at Entry' => 'bg-success',
+                                    'Served' => 'bg-primary',
+                                    'At Reception' => 'bg-info text-dark',
+                                    default => 'bg-secondary',
+                                };
+                            @endphp
                             <tr>
                                 <td>
                                     <div class="fw-semibold">{{ $visit->name }}</div>
@@ -98,13 +110,14 @@
                                         <span class="badge bg-warning text-dark">Waiting</span>
                                     @endif
                                 </td>
+                                <td><span class="badge {{ $badge }}">{{ $stage }}</span></td>
                                 <td class="text-end">
                                     <a href="{{ route('sample.visits.show', $visit) }}" class="btn btn-sm btn-outline-primary">Open</a>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-4">No sample visitors on site right now.</td>
+                                <td colspan="8" class="text-center text-muted py-4">No sample visitors on site right now.</td>
                             </tr>
                         @endforelse
                     </tbody>

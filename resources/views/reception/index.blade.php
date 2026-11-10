@@ -10,7 +10,7 @@
 
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body p-4">
-        <h5>Scan the visitor's ticket</h5>
+    <h5>Scan the visitor's ticket</h5>
         <form method="GET" action="{{ route('reception.lookup') }}">
             <div class="input-group input-group-lg">
                 <input type="text" name="code" value="{{ old('code') }}"
@@ -23,6 +23,8 @@
     </div>
 </div>
 
+@include('partials._unserved', ['unserved' => $unserved, 'ackRoute' => 'reception.exceptions.acknowledge'])
+
 <div class="card shadow-sm border-0">
     <div class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
         <div>
@@ -30,8 +32,8 @@
             <small class="opacity-75">Checkpoint 3 &middot; Standard House Reception</small>
         </div>
         <span class="badge bg-light text-dark fs-6">{{ $visits->count() }} on site</span>
-    </div>
-
+    </div>   
+           
     <div class="card-body p-4">
         @if ($visits->isEmpty())
             <p class="text-muted mb-0">No visitors are currently on site.</p>

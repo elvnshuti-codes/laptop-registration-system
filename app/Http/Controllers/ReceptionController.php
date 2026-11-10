@@ -19,6 +19,19 @@ class ReceptionController extends Controller
             ->first();
     }
 
+    // Strict flow: a visitor must go Gate -> Entry -> Reception.
+    // "Passed Entry" means a device was registered, or the Entry officer
+    // confirmed the visitor has no device.
+    private function passedEntry(VisitorVisit $visit): bool
+    {
+        return $visit->no_device_confirmed_at !== null || $visit->devices()->exists();
+    }
+
+    private function notPassedEntryMessage(VisitorVisit $visit): string
+    {
+        return "{$visit->name} has not been through Entry yet. Send the visitor to the Entry checkpoint first.";
+    }
+
     // Everyone currently on site, with device and reception status.
     public function index()
     {
@@ -48,6 +61,12 @@ class ReceptionController extends Controller
                 ->withErrors(['code' => 'No visitor on site has that code. Check it and try again.']);
         }
 
+        if (! $this->passedEntry($visit)) {
+            return back()
+                ->withInput()
+                ->withErrors(['code' => $this->notPassedEntryMessage($visit)]);
+        }
+
         return redirect()->route('reception.visits.show', $visit);
     }
 
@@ -58,6 +77,12 @@ class ReceptionController extends Controller
             return redirect()
                 ->route('reception.index')
                 ->with('error', "{$visit->name} has already left the premises.");
+        }
+
+        if (! $this->passedEntry($visit)) {
+            return redirect()
+                ->route('reception.index')
+                ->with('error', $this->notPassedEntryMessage($visit));
         }
 
         $visit->load(['devices', 'receptions.receivedBy']);
@@ -72,6 +97,12 @@ class ReceptionController extends Controller
             return redirect()
                 ->route('reception.index')
                 ->with('error', "{$visit->name} has already left the premises.");
+        }
+
+        if (! $this->passedEntry($visit)) {
+            return redirect()
+                ->route('reception.index')
+                ->with('error', $this->notPassedEntryMessage($visit));
         }
 
         $validated = $request->validate([

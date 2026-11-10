@@ -254,6 +254,7 @@ class GateController extends Controller
     {
         $visits = VisitorVisit::whereNotNull('gate_checked_in_at')
             ->whereNull('gate_checked_out_at')
+            ->with(['devices', 'receptions', 'sampleReception', 'exceptions'])
             ->withCount(['devices as devices_on_site' => fn ($q) => $q->whereNull('device_checked_out_at')])
             ->orderBy('gate_checked_in_at')
             ->get();

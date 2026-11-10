@@ -40,11 +40,22 @@
                             <th>Card No.</th>
                             <th>Checked In</th>
                             <th>Devices</th>
+                            <th>Stage</th>
                             <th class="text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($visits as $visit)
+                            @php
+                                $stage = $visit->stage();
+                                $ready = (bool) $visit->entry_cleared_at;
+                                $badge = match ($stage) {
+                                    'Cleared at Entry' => 'bg-success',
+                                    'Served' => 'bg-primary',
+                                    'At Reception' => 'bg-info text-dark',
+                                    default => 'bg-secondary',
+                                };
+                            @endphp
                             <tr>
                                 <td class="font-monospace fw-semibold">{{ $visit->visit_code }}</td>
                                 <td>{{ $visit->name }}</td>
@@ -57,10 +68,11 @@
                                         <span class="text-muted">&mdash;</span>
                                     @endif
                                 </td>
+                                <td><span class="badge {{ $badge }}">{{ $stage }}</span></td>
                                 <td class="text-end">
                                     <a href="{{ route('gate.checkout.show', $visit) }}"
-                                       class="btn btn-sm btn-danger @if ($visit->devices_on_site > 0) disabled @endif"
-                                       @if ($visit->devices_on_site > 0) aria-disabled="true" tabindex="-1" @endif>
+                                       class="btn btn-sm btn-danger @unless ($ready) disabled @endunless"
+                                       @unless ($ready) aria-disabled="true" tabindex="-1" title="Not cleared at Entry yet" @endunless>
                                         Check Out
                                     </a>
                                 </td>

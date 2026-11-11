@@ -13,6 +13,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\VisitPurposeController;
 use App\Http\Controllers\SampleTypeController;
 use App\Http\Controllers\SampleReceptionController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UnservedReasonController;
 
 Route::get('/', function () {
@@ -118,4 +119,9 @@ Route::middleware(['auth', 'role:Administrator'])->group(function () {
     Route::post('/admin/reasons', [UnservedReasonController::class, 'store'])->name('admin.reasons.store');
     Route::put('/admin/reasons/{reason}', [UnservedReasonController::class, 'update'])->name('admin.reasons.update');
     Route::delete('/admin/reasons/{reason}', [UnservedReasonController::class, 'destroy'])->name('admin.reasons.destroy');
+});
+// --- Reports (administrator and receptionists) ---
+Route::middleware(['auth', 'force.password.change', 'permission:view reports'])->group(function () {
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/csv', [ReportController::class, 'csv'])->name('reports.csv');
 });

@@ -122,6 +122,14 @@
                            href="{{ route('sample.index') }}">Samples</a>
                     </li>
                 @endcan
+
+                @can('view reports')
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}"
+                           href="{{ route('reports.index') }}">Reports</a>
+                    </li>
+                @endcan
+                
                 @role('Administrator')
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle {{ request()->routeIs('labels.*', 'admin.*') ? 'active' : '' }}"

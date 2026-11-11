@@ -1,0 +1,24 @@
+[90m= [39m[34;4mSpatie\Permission\Models\Permission[39;24m {#8726
+    [34mid[39m: [35m5[39m,
+    [34mname[39m: [32m"[39m[32mview reports[39m[32m"[39m,
+    [34mguard_name[39m: [32m"[39m[32mweb[39m[32m"[39m,
+    [34mroles[39m: [34;4mIlluminate\Database\Eloquent\Collection[39;24m {#8723
+      [34mall[39m: [
+        [34;4mSpatie\Permission\Models\Role[39;24m {#8705
+          [34mid[39m: [35m1[39m,
+          [34mname[39m: [32m"[39m[32mAdministrator[39m[32m"[39m,
+          [34mguard_name[39m: [32m"[39m[32mweb[39m[32m"[39m,
+        },
+        [34;4mSpatie\Permission\Models\Role[39;24m {#8708
+          [34mid[39m: [35m3[39m,
+          [34mname[39m: [32m"[39m[32mDepartment Head[39m[32m"[39m,
+          [34mguard_name[39m: [32m"[39m[32mweb[39m[32m"[39m,
+        },
+        [34;4mSpatie\Permission\Models\Role[39;24m {#8703
+          [34mid[39m: [35m4[39m,
+          [34mname[39m: [32m"[39m[32mSupervisor[39m[32m"[39m,
+          [34mguard_name[39m: [32m"[39m[32mweb[39m[32m"[39m,
+        },
+      ],
+    },
+  }

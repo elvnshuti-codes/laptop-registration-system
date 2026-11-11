@@ -332,11 +332,11 @@
 </div>
 
 {{-- Workload (administrator only) --}}
-@if ($isAdmin)
+@if ($handled->isNotEmpty())
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-header bg-dark text-white py-3">
-            <h5 class="mb-0">Visitors handled, by receptionist</h5>
-            <small class="opacity-75">Administrator only. Standard House: who received the visitor. Sample Reception: who marked them served.</small>
+            <h5 class="mb-0">Visitors handled</h5>
+            <small class="opacity-75">The administrator sees every receptionist; a receptionist sees only their own figure. Standard House: who received the visitor. Sample Reception: who marked them served.</small>
         </div>
         <div class="card-body p-0">
             <table class="table align-middle mb-0">

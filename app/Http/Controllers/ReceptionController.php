@@ -5,10 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\VisitException;
 use App\Models\VisitorReception;
 use App\Models\VisitorVisit;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class ReceptionController extends Controller
 {
+    // Minutes a visitor may wait before the wait badge turns amber / red.
+    private const WAIT_WARN = 30;
+    private const WAIT_LATE = 60;
+
     // Finds a visitor still on site from a scanned or typed visit code.
     // Barcodes carry hyphens, printed codes carry slashes: treat them the same.
     private function findOnSiteVisit(string $code): ?VisitorVisit
@@ -33,18 +38,44 @@ class ReceptionController extends Controller
         return "{$visit->name} has not been through Entry yet. Send the visitor to the Entry checkpoint first.";
     }
 
-    // Everyone currently on site, with device and reception status.
+    // Testing visitors are served at Sample Reception, not here.
+    private function wrongReception(VisitorVisit $visit): ?string
+    {
+        return $visit->for_sample_reception
+            ? "{$visit->name} is for Sample Reception, not Standard House Reception."
+            : null;
+    }
+
+    // Standard House visitors currently on site, each with a stage and a wait time.
     public function index()
     {
         $visits = VisitorVisit::whereNotNull('gate_checked_in_at')
             ->whereNull('gate_checked_out_at')
-            ->withCount([
-                'devices as devices_on_site' => fn ($q) => $q->whereNull('device_checked_out_at'),
-                'receptions as receptions_total',
-                'receptions as receptions_served' => fn ($q) => $q->where('served', true),
-            ])
+            ->where(fn ($q) => $q->where('for_sample_reception', false)->orWhereNull('for_sample_reception'))
+            ->with(['devices', 'receptions'])
             ->orderBy('gate_checked_in_at')
             ->get();
+
+        $rows = $visits->map(function (VisitorVisit $v) {
+            $passedEntry = $v->no_device_confirmed_at !== null || $v->devices->isNotEmpty();
+            $received = $v->receptions->isNotEmpty();
+            $allServed = $received && $v->receptions->every(fn ($r) => (bool) $r->served);
+            $checkIn = Carbon::parse($v->gate_checked_in_at);
+            $minutes = (int) abs(now()->diffInMinutes($checkIn));
+            $firstServed = $v->receptions->filter(fn ($r) => (bool) $r->served)->sortBy('served_at')->first();
+
+            return [
+                'visit' => $v,
+                'stage' => ! $passedEntry ? 'entry' : ($allServed ? 'served' : ($received ? 'progress' : 'waiting')),
+                'checkIn' => $checkIn,
+                'sameDay' => $checkIn->isToday(),
+                'wait' => $minutes < 60 ? "{$minutes} min" : intdiv($minutes, 60) . ' h ' . ($minutes % 60) . ' min',
+                'warn' => $minutes >= self::WAIT_WARN,
+                'late' => $minutes >= self::WAIT_LATE,
+                'servedAt' => $firstServed?->served_at ? Carbon::parse($firstServed->served_at) : null,
+                'destination' => $v->receptions->pluck('destination')->filter()->unique()->implode(', '),
+            ];
+        });
 
         // Standard House visitors Entry recorded as leaving unserved, not yet acknowledged.
         // These stay listed even after the visitor has left, until someone acknowledges them.
@@ -55,7 +86,7 @@ class ReceptionController extends Controller
             ->latest()
             ->get();
 
-        return view('reception.index', compact('visits', 'unserved'));
+        return view('reception.index', compact('rows', 'unserved'));
     }
 
     // Scan or type a visit code to jump to that visitor.
@@ -69,6 +100,10 @@ class ReceptionController extends Controller
             return back()
                 ->withInput()
                 ->withErrors(['code' => 'No visitor on site has that code. Check it and try again.']);
+        }
+
+        if ($message = $this->wrongReception($visit)) {
+            return back()->withInput()->withErrors(['code' => $message]);
         }
 
         if (! $this->passedEntry($visit)) {
@@ -89,6 +124,10 @@ class ReceptionController extends Controller
                 ->with('error', "{$visit->name} has already left the premises.");
         }
 
+        if ($message = $this->wrongReception($visit)) {
+            return redirect()->route('reception.index')->with('error', $message);
+        }
+
         if (! $this->passedEntry($visit)) {
             return redirect()
                 ->route('reception.index')
@@ -107,6 +146,10 @@ class ReceptionController extends Controller
             return redirect()
                 ->route('reception.index')
                 ->with('error', "{$visit->name} has already left the premises.");
+        }
+
+        if ($message = $this->wrongReception($visit)) {
+            return redirect()->route('reception.index')->with('error', $message);
         }
 
         if (! $this->passedEntry($visit)) {

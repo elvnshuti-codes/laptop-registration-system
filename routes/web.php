@@ -13,6 +13,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\VisitPurposeController;
 use App\Http\Controllers\SampleTypeController;
 use App\Http\Controllers\SampleReceptionController;
+use App\Http\Controllers\VisitorRecordController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UnservedReasonController;
 
@@ -124,4 +125,11 @@ Route::middleware(['auth', 'role:Administrator'])->group(function () {
 Route::middleware(['auth', 'force.password.change', 'permission:view reports'])->group(function () {
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/csv', [ReportController::class, 'csv'])->name('reports.csv');
+});
+
+// --- Visitor records (administrator and receptionists) ---
+Route::middleware(['auth', 'force.password.change', 'permission:view reports'])->group(function () {
+    Route::get('/records', [VisitorRecordController::class, 'index'])->name('records.index');
+    Route::get('/records/csv', [VisitorRecordController::class, 'csv'])->name('records.csv');
+    Route::get('/records/{visit}', [VisitorRecordController::class, 'show'])->name('records.show');
 });

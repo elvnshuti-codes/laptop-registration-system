@@ -286,21 +286,23 @@ class ReportController extends Controller
             'sentBackVisitors' => $rows->where('sentBack', '>', 0)->count(),
             'skipped' => $rows->sum('skipped'),
         ];
+        // Workload: the administrator sees every receptionist, a receptionist sees only their own.
+        $me = auth()->user();
+        $counts = $rows->where('served', true)
+            ->filter(fn ($r) => $r['handledBy'])
+            ->countBy(fn ($r) => $r['handledBy']);
 
-        // Workload per receptionist: administrator only.
-        $handled = collect();
-        if (auth()->user()->hasRole('Administrator')) {
-            $counts = $rows->where('served', true)
-                ->filter(fn ($r) => $r['handledBy'])
-                ->countBy(fn ($r) => $r['handledBy']);
-            $names = User::whereIn('id', $counts->keys())->pluck('name', 'id');
-
-            $handled = $counts
-                ->map(fn ($n, $id) => ['name' => $names[$id] ?? "User #{$id}", 'count' => $n])
-                ->sortByDesc('count')
-                ->values();
+        if (! $me->hasRole('Administrator')) {
+            $counts = collect([$me->id => $counts->get($me->id, 0)]);
         }
 
+        $names = User::whereIn('id', $counts->keys())->pluck('name', 'id');
+        $handled = $counts
+            ->map(fn ($n, $id) => ['name' => $names[$id] ?? "User #{$id}", 'count' => $n])
+            ->sortByDesc('count')
+            ->values();
+
+    
         return compact('rows', 'summary', 'periodRows', 'purposeRows', 'hours', 'weekdays', 'unserved', 'handled');
     }
 

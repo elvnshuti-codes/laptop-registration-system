@@ -121,10 +121,10 @@ class VisitorRecordController extends Controller
         $user = auth()->user();
         $areas = [];
 
-        if ($user->can('manage visitor reception')) {
+        if ($user->can('view standard house data')) {
             $areas[] = 'standard';
         }
-        if ($user->can('manage sample reception')) {
+        if ($user->can('view sample house data')) {
             $areas[] = 'sample';
         }
 

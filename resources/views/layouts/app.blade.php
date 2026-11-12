@@ -29,6 +29,7 @@
         .unbs-nav {
             background-color: var(--unbs-blue);
             border-bottom: 3px solid var(--unbs-gold);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
         }
         .unbs-nav .navbar-brand {
             display: flex;
@@ -38,12 +39,38 @@
             letter-spacing: .3px;
         }
         .unbs-nav .navbar-brand img { height: 42px; width: auto; }
-        .unbs-nav .nav-link { color: rgba(255, 255, 255, .78); }
-        .unbs-nav .nav-link:hover { color: #fff; }
+        .unbs-nav .nav-link { color: rgba(255, 255, 255, .78); white-space: nowrap; }
+        .unbs-nav .nav-link:hover,
+        .unbs-nav .nav-link.show { color: #fff; }
         .unbs-nav .nav-link.active {
             color: #fff;
             font-weight: 600;
             box-shadow: inset 0 -3px 0 var(--unbs-gold);
+        }
+        .unbs-nav .navbar-toggler { border-color: rgba(255, 255, 255, .4); }
+        .unbs-nav .dropdown-toggle::after { vertical-align: .15em; }
+        .unbs-nav .dropdown-menu {
+            border: 0;
+            border-radius: .6rem;
+            box-shadow: 0 .5rem 1.25rem rgba(8, 64, 144, .2);
+            --bs-dropdown-link-active-bg: var(--unbs-blue);
+        }
+        .unbs-nav .dropdown-header {
+            text-transform: uppercase;
+            letter-spacing: .6px;
+            font-size: .7rem;
+            color: var(--unbs-blue);
+        }
+        .unbs-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--unbs-gold);
+            color: var(--unbs-navy);
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         /* Buttons */
@@ -74,86 +101,126 @@
 <body class="bg-light">
 
     @auth
-    <nav class="navbar navbar-expand navbar-dark unbs-nav mb-4">
+    @php
+        $u = auth()->user();
+        $isAdmin = $u->hasRole('Administrator');
+        $on = fn (...$patterns) => request()->routeIs(...$patterns);
+
+        // Checkpoints, in the order a visitor meets them.
+        $stations = [];
+        if ($u->can('manage gate visitors')) {
+            $stations[] = ['group' => 'Main Gate', 'flat' => 'Check-In', 'item' => 'Check-In', 'url' => route('gate.create'), 'active' => $on('gate.create', 'gate.ticket')];
+            $stations[] = ['group' => 'Main Gate', 'flat' => 'Check-Out', 'item' => 'Check-Out', 'url' => route('gate.checkout.index'), 'active' => $on('gate.checkout.*')];
+        }
+        if ($u->can('manage visitor devices')) {
+            $stations[] = ['group' => 'Entry', 'flat' => 'Entry', 'item' => 'Visitor devices', 'url' => route('entry.index'), 'active' => $on('entry.*')];
+        }
+        if ($u->can('manage visitor reception')) {
+            $stations[] = ['group' => 'Reception', 'flat' => 'Reception', 'item' => 'Standard House', 'url' => route('reception.index'), 'active' => $on('reception.*')];
+        }
+        if ($u->can('manage sample reception')) {
+            $stations[] = ['group' => 'Reception', 'flat' => 'Sample Reception', 'item' => 'Sample House', 'url' => route('sample.index'), 'active' => $on('sample.*')];
+        }
+
+        // Staff laptops: the employee list, and the old registrations page for now.
+        $staff = [];
+        if ($u->can('manage staff devices')) {
+            $staff[] = ['flat' => 'Staff Laptops', 'item' => 'Employees', 'url' => route('staff.employees.index'), 'active' => $on('staff.employees.*')];
+        }
+        if ($u->can('view registrations')) {
+            $staff[] = ['flat' => 'Staff Laptops', 'item' => 'Registrations', 'url' => route('registrations.index'), 'active' => $on('registrations.*')];
+        }
+
+        // Reports.
+        $insights = [];
+        if ($u->can('view reports')) {
+            $insights[] = ['flat' => 'Reports', 'item' => 'Summary reports', 'url' => route('reports.index'), 'active' => $on('reports.*')];
+        }
+        if ($u->can('view visitor records')) {
+            $insights[] = ['flat' => 'Records', 'item' => 'Visitor records', 'url' => route('records.index'), 'active' => $on('records.*')];
+        }
+
+        // Administration.
+        $admin = [];
+        if ($u->can('manage users')) {
+            $admin[] = ['group' => 'People and access', 'label' => 'Users', 'url' => route('users.index'), 'active' => $on('users.*')];
+        }
+        if ($isAdmin) {
+            $admin[] = ['group' => 'People and access', 'label' => 'User access', 'url' => route('admin.report-access.index'), 'active' => $on('admin.report-access.*')];
+            $admin[] = ['group' => 'Visitor setup', 'label' => 'Purposes of visit', 'url' => route('admin.purposes.index'), 'active' => $on('admin.purposes.*')];
+            $admin[] = ['group' => 'Visitor setup', 'label' => 'Sample types', 'url' => route('admin.sample-types.index'), 'active' => $on('admin.sample-types.*')];
+            $admin[] = ['group' => 'Visitor setup', 'label' => 'Unserved reasons', 'url' => route('admin.reasons.index'), 'active' => $on('admin.reasons.*')];
+            $admin[] = ['group' => 'Stickers', 'label' => 'Labels', 'url' => route('labels.index'), 'active' => $on('labels.*')];
+        }
+    @endphp
+
+    <nav class="navbar navbar-expand-xl navbar-dark unbs-nav mb-4">
         <div class="container">
             <span class="navbar-brand">
                 <img src="{{ asset('images/unbs-logo.png') }}" alt="UNBS">
                 <span>UNBS Visitor Management System</span>
             </span>
 
-            <ul class="navbar-nav me-auto">
-                @can('view registrations')
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('registrations.*') ? 'active' : '' }}"
-                           href="{{ route('registrations.index') }}">Registrations</a>
-                    </li>
-                @endcan
-                @can('manage users')
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}"
-                           href="{{ route('users.index') }}">Users</a>
-                    </li>
-                @endcan
-                @can('manage gate visitors')
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('gate.create', 'gate.ticket') ? 'active' : '' }}"
-                           href="{{ route('gate.create') }}">Check-In</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('gate.checkout.*') ? 'active' : '' }}"
-                           href="{{ route('gate.checkout.index') }}">Check-Out</a>
-                    </li>
-                @endcan
-                @can('manage visitor devices')
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('entry.*') ? 'active' : '' }}"
-                           href="{{ route('entry.index') }}">Entry</a>
-                    </li>
-                @endcan
-                @can('manage visitor reception')
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('reception.*') ? 'active' : '' }}"
-                           href="{{ route('reception.index') }}">Reception</a>
-                    </li>
-                @endcan
-                @can('manage sample reception')
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('sample.*') ? 'active' : '' }}"
-                           href="{{ route('sample.index') }}">Samples</a>
-                    </li>
-                @endcan
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+                    aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
 
-                @can('view reports')
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}"
-                           href="{{ route('reports.index') }}">Reports</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('records.*') ? 'active' : '' }}"
-                           href="{{ route('records.index') }}">Records</a>
-                    </li>
-                @endcan
-                
-                @role('Administrator')
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {{ request()->routeIs('labels.*', 'admin.*') ? 'active' : '' }}"
-                           href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Admin</a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ route('labels.index') }}">Labels</a></li>
-                            <li><a class="dropdown-item" href="{{ route('admin.purposes.index') }}">Purposes</a></li>
-                            <li><a class="dropdown-item" href="{{ route('admin.sample-types.index') }}">Sample types</a></li>
-                            <li><a class="dropdown-item" href="{{ route('admin.reasons.index') }}">Unserved reasons</a></li>
-                        </ul>
-                    </li>
-                @endrole
-            </ul>
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav me-auto mb-2 mb-xl-0">
 
-            <div class="d-flex align-items-center text-white">
-                <a href="{{ route('profile.edit') }}" class="me-3 small text-white text-decoration-none">{{ Auth::user()->name }}</a>
-                <form action="{{ route('logout') }}" method="POST" class="m-0">
-                    @csrf
-                    <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
-                </form>
+                    {{-- Checkpoints: plain links for most roles, one dropdown when there are many --}}
+                    @if (count($stations) > 3)
+                        @include('layouts._nav-dropdown', ['label' => 'Checkpoints', 'items' => $stations])
+                    @else
+                        @foreach ($stations as $item)
+                            @include('layouts._nav-link', ['item' => $item])
+                        @endforeach
+                    @endif
+
+                    @if (count($staff) > 1)
+                        @include('layouts._nav-dropdown', ['label' => 'Staff Laptops', 'items' => $staff])
+                    @else
+                        @foreach ($staff as $item)
+                            @include('layouts._nav-link', ['item' => $item])
+                        @endforeach
+                    @endif
+
+                    @if (count($insights) > 1)
+                        @include('layouts._nav-dropdown', ['label' => 'Reports', 'items' => $insights])
+                    @else
+                        @foreach ($insights as $item)
+                            @include('layouts._nav-link', ['item' => $item])
+                        @endforeach
+                    @endif
+
+                    @if (count($admin) > 1)
+                        @include('layouts._nav-dropdown', ['label' => 'Administration', 'items' => $admin])
+                    @else
+                        @foreach ($admin as $item)
+                            @include('layouts._nav-link', ['item' => $item])
+                        @endforeach
+                    @endif
+                </ul>
+
+                <div class="dropdown">
+                    <a class="d-flex align-items-center gap-2 text-white text-decoration-none dropdown-toggle text-nowrap"
+                       href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="unbs-avatar">{{ strtoupper(mb_substr($u->name, 0, 1)) }}</span>
+                        <span>{{ $u->name }}</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><h6 class="dropdown-header">{{ $u->getRoleNames()->implode(', ') ?: 'No role' }}</h6></li>
+                        <li><a class="dropdown-item" href="{{ route('profile.edit') }}">My profile</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form action="{{ route('logout') }}" method="POST" class="m-0">
+                                @csrf
+                                <button type="submit" class="dropdown-item">Log out</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </nav>

@@ -53,7 +53,9 @@
                             </td>
                             <td class="text-end">
                                 <div class="d-flex justify-content-end gap-1">
+@can('view visitor records')
                                     <a href="{{ route('records.show', $ex->visit) }}" class="btn btn-sm btn-outline-secondary">Details</a>
+@endcan
                                     <form method="POST" action="{{ route($ackRoute, $ex) }}">
                                         @csrf
                                         <button type="submit" class="btn btn-sm btn-outline-danger">Acknowledge</button>

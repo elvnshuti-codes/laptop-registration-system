@@ -19,8 +19,10 @@
         </div>
     </div>
     <div class="d-flex gap-2">
+@can('export reports')
         <a href="{{ route('reports.csv', $csvQuery + ['type' => 'visits']) }}" class="btn btn-outline-primary btn-sm">Download visitors (CSV)</a>
         <a href="{{ route('reports.csv', $csvQuery + ['type' => 'summary']) }}" class="btn btn-outline-primary btn-sm">Download summary (CSV)</a>
+@endcan
     </div>
 </div>
 
@@ -336,7 +338,7 @@
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-header bg-dark text-white py-3">
             <h5 class="mb-0">Visitors handled</h5>
-            <small class="opacity-75">The administrator sees every receptionist; a receptionist sees only their own figure. Standard House: who received the visitor. Sample Reception: who marked them served.</small>
+            <small class="opacity-75">People with the workload permission see every receptionist; everyone else sees only their own figure. Standard House: who received the visitor. Sample Reception: who marked them served.</small>
         </div>
         <div class="card-body p-0">
             <table class="table align-middle mb-0">

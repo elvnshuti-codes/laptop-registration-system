@@ -72,28 +72,37 @@ class AuthController extends Controller
      * Administrators pass every permission check, so they are excluded explicitly
      * and go to the main registrations page. Officers land on their own screen.
      */
-    private function redirectToHome()
-    {
-        $user = Auth::user();
-
-        if (! $user->hasRole('Administrator')) {
-            if ($user->can('manage gate visitors')) {
-                return redirect()->route('gate.create');
+        /**
+     * Decide where a user lands after login / password change.
+     * Officers land on their own screen; everyone else lands on the first page they are allowed to open.
+     * Administrators pass every permission check, so they are handled first.
+     */
+        private function redirectToHome()
+        {
+            $user = Auth::user();
+    
+            if ($user->hasRole('Administrator')) {
+                return redirect()->route('registrations.index');
             }
-
-            if ($user->can('manage visitor devices')) {
-                return redirect()->route('entry.index');
+    
+            // Screens that belong to a station, in the order they are checked.
+            $landing = [
+                'manage gate visitors' => 'gate.create',
+                'manage visitor devices' => 'entry.index',
+                'manage visitor reception' => 'reception.index',
+                'manage sample reception' => 'sample.index',
+                'view reports' => 'reports.index',
+                'view visitor records' => 'records.index',
+                'manage staff devices' => 'staff.employees.index',
+                'view registrations' => 'registrations.index',
+            ];
+    
+            foreach ($landing as $permission => $route) {
+                if ($user->can($permission)) {
+                    return redirect()->route($route);
+                }
             }
-
-            if ($user->can('manage visitor reception')) {
-                return redirect()->route('reception.index');
-            }
-            
-            if ($user->can('manage sample reception')) {
-                return redirect()->route('sample.index');
-            }
+    
+            abort(403, 'No pages are assigned to your account yet. Please contact the administrator.');
         }
-
-        return redirect()->route('registrations.index');
-    }
 }

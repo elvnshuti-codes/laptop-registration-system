@@ -19,7 +19,9 @@
     </div>
     <div class="d-flex gap-2">
         <a href="{{ route('records.index', ['status' => 'followup']) }}" class="btn btn-outline-danger btn-sm">Follow-up list</a>
+@can('export reports')
         <a href="{{ route('records.csv', $csvQuery) }}" class="btn btn-outline-primary btn-sm">Download results (CSV)</a>
+@endcan
     </div>
 </div>
 

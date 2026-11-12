@@ -115,10 +115,10 @@ class ReportController extends Controller
         $user = auth()->user();
         $areas = [];
 
-        if ($user->can('manage visitor reception')) {
+        if ($user->can('view standard house data')) {
             $areas[] = 'standard';
         }
-        if ($user->can('manage sample reception')) {
+        if ($user->can('view sample house data')) {
             $areas[] = 'sample';
         }
 
@@ -292,7 +292,7 @@ class ReportController extends Controller
             ->filter(fn ($r) => $r['handledBy'])
             ->countBy(fn ($r) => $r['handledBy']);
 
-        if (! $me->hasRole('Administrator')) {
+        if (! $me->can('view all workload')) {
             $counts = collect([$me->id => $counts->get($me->id, 0)]);
         }
 

@@ -16,6 +16,8 @@ use App\Http\Controllers\SampleReceptionController;
 use App\Http\Controllers\VisitorRecordController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UnservedReasonController;
+use App\Http\Controllers\ReportAccessController;
+use App\Http\Controllers\EmployeeController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -120,11 +122,26 @@ Route::middleware(['auth', 'role:Administrator'])->group(function () {
     Route::post('/admin/reasons', [UnservedReasonController::class, 'store'])->name('admin.reasons.store');
     Route::put('/admin/reasons/{reason}', [UnservedReasonController::class, 'update'])->name('admin.reasons.update');
     Route::delete('/admin/reasons/{reason}', [UnservedReasonController::class, 'destroy'])->name('admin.reasons.destroy');
+
+    Route::get('/admin/report-access', [ReportAccessController::class, 'index'])->name('admin.report-access.index');
+    Route::get('/admin/report-access/{user}', [ReportAccessController::class, 'edit'])->name('admin.report-access.edit');
+    Route::put('/admin/report-access/{user}', [ReportAccessController::class, 'update'])->name('admin.report-access.update');
 });
-// --- Reports (administrator and receptionists) ---
-Route::middleware(['auth', 'force.password.change', 'permission:view reports'])->group(function () {
-    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
-    Route::get('/reports/csv', [ReportController::class, 'csv'])->name('reports.csv');
+
+    // --- Reports and visitor records (the administrator sets access per person) ---
+     Route::middleware(['auth', 'force.password.change'])->group(function () {
+    Route::get('/reports', [ReportController::class, 'index'])
+        ->middleware('permission:view reports')->name('reports.index');
+    Route::get('/reports/csv', [ReportController::class, 'csv'])
+        ->middleware(['permission:view reports', 'permission:export reports'])->name('reports.csv');
+
+    // csv must come before {visit}
+    Route::get('/records/csv', [VisitorRecordController::class, 'csv'])
+        ->middleware(['permission:view visitor records', 'permission:export reports'])->name('records.csv');
+    Route::get('/records', [VisitorRecordController::class, 'index'])
+        ->middleware('permission:view visitor records')->name('records.index');
+    Route::get('/records/{visit}', [VisitorRecordController::class, 'show'])
+        ->middleware('permission:view visitor records')->name('records.show');
 });
 
 // --- Visitor records (administrator and receptionists) ---
@@ -132,4 +149,14 @@ Route::middleware(['auth', 'force.password.change', 'permission:view reports'])-
     Route::get('/records', [VisitorRecordController::class, 'index'])->name('records.index');
     Route::get('/records/csv', [VisitorRecordController::class, 'csv'])->name('records.csv');
     Route::get('/records/{visit}', [VisitorRecordController::class, 'show'])->name('records.show');
+});
+
+// --- Staff laptops: employee list ---
+Route::middleware(['auth', 'force.password.change', 'permission:manage staff devices'])->prefix('staff')->name('staff.')->group(function () {
+    Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
+    Route::get('/employees/create', [EmployeeController::class, 'create'])->name('employees.create');
+    Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
+    Route::get('/employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
+    Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
+    Route::post('/employees/{employee}/toggle', [EmployeeController::class, 'toggle'])->name('employees.toggle');
 });

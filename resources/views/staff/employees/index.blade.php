@@ -20,6 +20,7 @@
                     <th>Name</th>
                     <th>Position</th>
                     <th>Department</th>
+                    <th>Devices</th>
                     <th>Status</th>
                     <th class="text-end">Actions</th>
                 </tr>
@@ -31,6 +32,18 @@
                         <td>{{ $employee->name }}</td>
                         <td>{{ $employee->position }}</td>
                         <td>{{ $employee->department }}</td>
+                        <td data-order="{{ $employee->organization_count + $employee->personal_count }}">
+                            @if ($employee->organization_count + $employee->personal_count === 0)
+                                <span class="text-muted small">None</span>
+                            @else
+                                @if ($employee->organization_count)
+                                    <span class="badge bg-primary">Organization {{ $employee->organization_count }}</span>
+                                @endif
+                                @if ($employee->personal_count)
+                                    <span class="badge bg-info text-dark">Personal {{ $employee->personal_count }}</span>
+                                @endif
+                            @endif
+                        </td>
                         <td>
                             @if ($employee->is_active)
                                 <span class="badge bg-success">Active</span>
@@ -40,6 +53,7 @@
                         </td>
                         <td class="text-end">
                             <div class="d-flex justify-content-end gap-1">
+                                <a href="{{ route('staff.devices.index', $employee) }}" class="btn btn-sm btn-outline-dark">Devices</a>
                                 <a href="{{ route('staff.employees.edit', $employee) }}" class="btn btn-sm btn-outline-primary">Edit</a>
                                 <form method="POST" action="{{ route('staff.employees.toggle', $employee) }}">
                                     @csrf

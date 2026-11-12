@@ -18,6 +18,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UnservedReasonController;
 use App\Http\Controllers\ReportAccessController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\StaffDeviceController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -159,4 +160,7 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage staff dev
     Route::get('/employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
     Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
     Route::post('/employees/{employee}/toggle', [EmployeeController::class, 'toggle'])->name('employees.toggle');
+    Route::get('/employees/{employee}/devices', [StaffDeviceController::class, 'index'])->name('devices.index');
+    Route::post('/employees/{employee}/devices', [StaffDeviceController::class, 'store'])->name('devices.store');
+    Route::post('/devices/{device}/toggle', [StaffDeviceController::class, 'toggle'])->name('devices.toggle');
 });

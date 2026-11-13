@@ -8,7 +8,10 @@
         <h3 class="mb-0">Employees</h3>
         <div class="text-muted">The staff list that devices are registered against.</div>
     </div>
-    <a href="{{ route('staff.employees.create') }}" class="btn btn-primary">+ Add employee</a>
+    <div class="d-flex gap-2">
+        <a href="{{ route('staff.stickers.pending') }}" class="btn btn-outline-dark">Print unprinted stickers</a>
+        <a href="{{ route('staff.employees.create') }}" class="btn btn-primary">+ Add employee</a>
+    </div>
 </div>
 
 <div class="card shadow-sm border-0">

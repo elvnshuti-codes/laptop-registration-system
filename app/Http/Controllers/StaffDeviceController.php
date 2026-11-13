@@ -5,14 +5,21 @@ namespace App\Http\Controllers;
 use App\Models\Employee;
 use App\Models\StaffDevice;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class StaffDeviceController extends Controller
 {
     public const OWNER_TYPES = ['organization' => 'Organization', 'personal' => 'Personal'];
+    public const DEVICE_TYPES = ['Laptop', 'Tablet'];
 
-    // Device type => barcode prefix for personal devices.
-    public const DEVICE_TYPES = ['Laptop' => 'PL', 'Tablet' => 'PT'];
+    // Barcode prefix by owner and device type: UL = UNBS laptop, UT = UNBS tablet, PL = personal laptop, PT = personal tablet.
+    public const CODE_PREFIXES = [
+        'organization' => ['Laptop' => 'UL', 'Tablet' => 'UT'],
+        'personal' => ['Laptop' => 'PL', 'Tablet' => 'PT'],
+    ];
 
     public const MAX_ORGANIZATION = 1;
     public const MAX_PERSONAL = 2;
@@ -41,47 +48,53 @@ class StaffDeviceController extends Controller
 
         $isOrganization = $request->input('owner_type') === 'organization';
 
+        $serial = $this->clean($request->input('serial_number'));
+        $tag = $isOrganization ? $this->clean($request->input('asset_tag')) : '';
+        $model = trim((string) $request->input('make_model'));
+
         $request->merge([
-            'make_model' => trim((string) $request->input('make_model')),
-            'serial_number' => $this->clean($request->input('serial_number')),
-            'asset_tag' => $isOrganization ? $this->clean($request->input('asset_tag')) : null,
+            'make_model' => $model === '' ? null : $model,
+            'serial_number' => $serial === '' ? null : $serial,
+            'asset_tag' => $tag === '' ? null : $tag,
         ]);
 
         $data = $request->validate([
             'owner_type' => ['required', Rule::in(array_keys(self::OWNER_TYPES))],
-            'device_type' => ['required', Rule::in(array_keys(self::DEVICE_TYPES))],
+            'device_type' => ['required', Rule::in(self::DEVICE_TYPES)],
             'make_model' => 'nullable|string|max:100',
-            'serial_number' => ['required', 'string', 'max:60', 'regex:/^[A-Z0-9._\/-]+$/', 'unique:staff_devices,serial_number'],
+            'serial_number' => [
+                Rule::requiredIf(! $isOrganization), 'nullable', 'string', 'max:60',
+                'regex:/^[A-Z0-9._\/-]+$/', 'unique:staff_devices,serial_number',
+            ],
             'asset_tag' => [
                 Rule::requiredIf($isOrganization), 'nullable', 'string', 'max:60',
-                'regex:/^[A-Z0-9._\/-]+$/', 'not_regex:/^P[LT]-/', 'unique:staff_devices,asset_tag',
+                'regex:/^[A-Z0-9._\/-]+$/', 'unique:staff_devices,asset_tag',
             ],
         ], [
+            'serial_number.required' => 'The serial number is required for a personal device.',
             'serial_number.regex' => 'The serial number may only contain letters, digits and - / . _ characters.',
-            'asset_tag.regex' => 'The asset tag may only contain letters, digits and - / . _ characters.',
-            'asset_tag.not_regex' => 'An asset tag cannot start with PL- or PT-, those are reserved for personal devices.',
             'asset_tag.required' => 'The UNBS asset tag is required for an organization device.',
+            'asset_tag.regex' => 'The asset tag may only contain letters, digits and - / . _ characters.',
         ]);
 
         if ($message = $this->limitMessage($employee, $data['owner_type'])) {
             return back()->withInput()->withErrors(['owner_type' => $message]);
         }
 
-        // What the barcode will read.
-        $code = $isOrganization
-            ? $data['asset_tag']
-            : self::DEVICE_TYPES[$data['device_type']] . '-' . $data['serial_number'];
+        $device = DB::transaction(function () use ($employee, $data, $request) {
+            // The row is created first so its own number is available for the code.
+            $device = $employee->devices()->create($data + [
+                'sticker_code' => 'TMP-' . Str::uuid(),
+                'is_active' => true,
+                'registered_by' => $request->user()->id,
+            ]);
 
-        if (StaffDevice::where('sticker_code', $code)->exists()) {
-            return back()->withInput()->withErrors(['serial_number' => "A device with the barcode {$code} is already registered."]);
-        }
+            $device->update([
+                'sticker_code' => $this->makeCode($data['owner_type'], $data['device_type'], $data['asset_tag'], $device->id),
+            ]);
 
-        $device = $employee->devices()->create($data + [
-            'sticker_code' => $code,
-            'make_model' => $data['make_model'] ?: null,
-            'is_active' => true,
-            'registered_by' => $request->user()->id,
-        ]);
+            return $device;
+        });
 
         return redirect()
             ->route('staff.devices.index', $employee)
@@ -100,7 +113,31 @@ class StaffDeviceController extends Controller
         return back()->with('success', "{$device->sticker_code} " . ($device->is_active ? 'is active again.' : 'was retired.'));
     }
 
-    // Serial numbers and asset tags: uppercase, no spaces (scanners do not reproduce spaces reliably).
+    // UNBS devices: the last digits of the asset tag (154-IT-LP-1365 -> UL-01365).
+    // Anything else, or a tag without trailing digits: the device's own number.
+    // A code that is already taken gets a letter: UL-01365, UL-01365A, UL-01365B...
+    private function makeCode(string $ownerType, string $deviceType, ?string $assetTag, int $number): string
+    {
+        $prefix = self::CODE_PREFIXES[$ownerType][$deviceType];
+
+        if ($ownerType === 'organization' && $assetTag && preg_match('/(\d+)$/', $assetTag, $m)) {
+            $base = sprintf('%s-%05d', $prefix, (int) substr($m[1], -4));
+        } else {
+            $base = sprintf('%s-%05d', $prefix, $number);
+        }
+
+        foreach (array_merge([''], range('A', 'Z')) as $letter) {
+            if (! StaffDevice::where('sticker_code', $base . $letter)->exists()) {
+                return $base . $letter;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'asset_tag' => 'Too many devices end with the same digits. Please tell the administrator.',
+        ]);
+    }
+
+    // Serial numbers and asset tags: uppercase, no spaces.
     private function clean(mixed $value): string
     {
         return strtoupper(preg_replace('/\s+/', '', (string) $value));

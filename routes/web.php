@@ -19,6 +19,7 @@ use App\Http\Controllers\UnservedReasonController;
 use App\Http\Controllers\ReportAccessController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\StaffDeviceController;
+use App\Http\Controllers\StaffStickerController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -163,4 +164,7 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage staff dev
     Route::get('/employees/{employee}/devices', [StaffDeviceController::class, 'index'])->name('devices.index');
     Route::post('/employees/{employee}/devices', [StaffDeviceController::class, 'store'])->name('devices.store');
     Route::post('/devices/{device}/toggle', [StaffDeviceController::class, 'toggle'])->name('devices.toggle');
+    Route::get('/employees/{employee}/stickers', [StaffStickerController::class, 'employee'])->name('stickers.employee');
+    Route::get('/stickers/pending', [StaffStickerController::class, 'pending'])->name('stickers.pending');
+    Route::post('/stickers/printed', [StaffStickerController::class, 'markPrinted'])->name('stickers.printed');
 });

@@ -13,7 +13,12 @@
             @endunless
         </div>
     </div>
-    <a href="{{ route('staff.employees.index') }}" class="btn btn-outline-secondary">&larr; Employees</a>
+    <div class="d-flex gap-2">
+        @if ($devices->where('is_active', true)->isNotEmpty())
+            <a href="{{ route('staff.stickers.employee', $employee) }}" class="btn btn-primary">Print stickers</a>
+        @endif
+        <a href="{{ route('staff.employees.index') }}" class="btn btn-outline-secondary">&larr; Employees</a>
+    </div>
 </div>
 
 @if ($errors->any())
@@ -37,7 +42,7 @@
                             <th>Barcode reads</th>
                             <th>Device</th>
                             <th>Owner</th>
-                            <th>Serial number</th>
+                            <th>Serial / asset tag</th>
                             <th class="text-end"></th>
                         </tr>
                     </thead>
@@ -68,7 +73,17 @@
                                         <span class="badge bg-secondary">Retired</span>
                                     @endunless
                                 </td>
-                                <td class="font-monospace small">{{ $device->serial_number }}</td>
+                                <td class="small">
+                                    @if ($device->asset_tag)
+                                        <div>Asset tag: <span class="font-monospace">{{ $device->asset_tag }}</span></div>
+                                    @endif
+                                    @if ($device->serial_number)
+                                        <div>S/N: <span class="font-monospace">{{ $device->serial_number }}</span></div>
+                                    @endif
+                                    @if (! $device->asset_tag && ! $device->serial_number)
+                                        &mdash;
+                                    @endif
+                                </td>
                                 <td class="text-end">
                                     <form method="POST" action="{{ route('staff.devices.toggle', $device) }}"
                                           onsubmit="return confirm('{{ $device->is_active ? 'Retire' : 'Restore' }} {{ $device->sticker_code }}?')">
@@ -118,7 +133,7 @@
                         <div class="mb-3">
                             <label for="device_type" class="form-label fw-semibold">Device type</label>
                             <select id="device_type" name="device_type" class="form-select" required>
-                                @foreach ($deviceTypes as $type => $prefix)
+                                @foreach ($deviceTypes as $type)
                                     <option value="{{ $type }}" @selected(old('device_type') === $type)>{{ $type }}</option>
                                 @endforeach
                             </select>
@@ -130,21 +145,20 @@
                                    class="form-control" placeholder="e.g. Lenovo ThinkPad">
                         </div>
 
-                        <div class="mb-3">
-                            <label for="serial_number" class="form-label fw-semibold">Serial number</label>
-                            <input type="text" id="serial_number" name="serial_number" maxlength="60" value="{{ old('serial_number') }}"
-                                   class="form-control font-monospace" placeholder="e.g. PF-646CSR" required>
-                        </div>
-
                         <div class="mb-3" id="asset-tag-box">
                             <label for="asset_tag" class="form-label fw-semibold">UNBS asset tag</label>
                             <input type="text" id="asset_tag" name="asset_tag" maxlength="60" value="{{ old('asset_tag') }}"
                                    class="form-control font-monospace" placeholder="e.g. 154-IT-LP-2026">
                         </div>
 
-                        <div class="rounded border bg-light p-2 mb-3">
-                            <div class="small text-muted">The barcode will read</div>
-                            <div id="code-preview" class="font-monospace fw-semibold">&mdash;</div>
+                        <div class="mb-3">
+                            <label for="serial_number" class="form-label fw-semibold">Serial number <span id="serial-hint" class="text-muted fw-normal">(optional)</span></label>
+                            <input type="text" id="serial_number" name="serial_number" maxlength="60" value="{{ old('serial_number') }}"
+                                   class="form-control font-monospace" placeholder="e.g. PF-646CSR">
+                        </div>
+
+                        <div class="rounded border bg-light p-2 mb-3 small text-muted">
+                            The barcode is generated automatically when you save (a short code such as <span class="font-monospace">UL-01365</span>, built from the asset tag's last digits).
                         </div>
 
                         <button type="submit" class="btn btn-primary w-100">Register device</button>
@@ -159,32 +173,17 @@
 @section('scripts')
 <script>
     $(function () {
-        var prefixes = @json($deviceTypes);
-
-        // Same cleaning as the server: uppercase, no spaces.
-        function clean(value) {
-            return (value || '').replace(/\s+/g, '').toUpperCase();
-        }
-
         function refresh() {
             var owner = $('#owner_type').val();
-            var isPersonal = owner === 'personal';
 
-            // The asset tag only applies to UNBS (organization) devices.
-            $('#asset-tag-box').toggle(! isPersonal);
+            // The asset tag applies to UNBS devices; the serial number is required for personal devices.
+            $('#asset-tag-box').toggle(owner !== 'personal');
             $('#asset_tag').prop('required', owner === 'organization');
-
-            var code = '';
-            if (owner === 'organization') {
-                code = clean($('#asset_tag').val());
-            } else if (isPersonal && $('#serial_number').val()) {
-                code = prefixes[$('#device_type').val()] + '-' + clean($('#serial_number').val());
-            }
-
-            $('#code-preview').text(code || '\u2014');
+            $('#serial_number').prop('required', owner === 'personal');
+            $('#serial-hint').text(owner === 'personal' ? '(required)' : '(optional)');
         }
 
-        $('#owner_type, #device_type, #serial_number, #asset_tag').on('input change', refresh);
+        $('#owner_type').on('change', refresh);
         refresh();
     });
 </script>

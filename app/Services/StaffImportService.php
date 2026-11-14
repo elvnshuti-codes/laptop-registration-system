@@ -46,6 +46,7 @@ class StaffImportService
             'last' => $this->column($headers, ['last name', 'lastname', 'surname', 'last']),
             'position' => $this->column($headers, ['position', 'designation', 'title']),
             'department' => $this->column($headers, ['department', 'dept']),
+            'email' => $this->column($headers, ['email address', 'e-mail', 'email']),
         ];
 
         $this->requireColumns('employee list', $col, ['id' => 'Employee ID', 'first' => 'First name', 'last' => 'Last name'], $headers);
@@ -61,6 +62,7 @@ class StaffImportService
                 'last' => $this->cell($row, $col['last']),
                 'position' => $this->cell($row, $col['position']),
                 'department' => $this->cell($row, $col['department']),
+                'email' => mb_strtolower(str_replace(' ', '', $this->cell($row, $col['email']))),
             ];
 
             if (implode('', array_slice($item, 1)) === '') {
@@ -243,6 +245,7 @@ class StaffImportService
                 // All the names that are filled in, kept in this order.
                 'name' => implode(' ', array_filter([$r['first'], $r['other'], $r['last']], fn ($part) => $part !== '')),
                 'position' => $r['position'] !== '' ? $r['position'] : null,
+                'email' => filter_var($r['email'], FILTER_VALIDATE_EMAIL) ? $r['email'] : null,
                 'department' => $dept['name'],
                 'dept_key' => $dept['key'],
                 'action' => isset($existing['employees'][$r['id']]) ? 'update' : 'create',
@@ -523,6 +526,7 @@ class StaffImportService
             foreach (array_merge($plan['people'], $plan['placeholders']) as $p) {
                 $employee = Employee::where('employee_id_number', $p['id'])->first();
                 $position = $p['position'] !== null ? Str::limit($p['position'], 120, '') : null;
+                $email = $p['email'] ?? null;
 
                 if ($employee) {
                     // A blank cell never wipes out what the system already knows.
@@ -530,6 +534,7 @@ class StaffImportService
                         'name' => $p['name'],
                         'position' => $position,
                         'department' => $p['department'],
+                        'email' => $email,
                     ], fn ($value) => $value !== null));
                     $updated++;
                 } else {
@@ -538,6 +543,7 @@ class StaffImportService
                         'name' => $p['name'],
                         'position' => $position ?? 'Unknown',
                         'department' => $p['department'] ?? 'Unknown',
+                        'email' => $email,
                         'is_active' => true,
                     ]);
                     $created++;

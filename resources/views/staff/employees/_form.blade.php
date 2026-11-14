@@ -43,3 +43,8 @@
         @endforeach
     </datalist>
 </div>
+
+<div class="mb-3">
+    <label for="email" class="form-label fw-semibold">Email (UNBS)</label>
+    <input type="email" id="email" name="email" value="{{ old('email', $employee->email ?? '') }}" class="form-control" autocomplete="off">
+</div>

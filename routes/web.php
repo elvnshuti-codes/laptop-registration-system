@@ -21,6 +21,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\StaffDeviceController;
 use App\Http\Controllers\StaffStickerController;
 use App\Http\Controllers\StaffImportController;
+use App\Http\Controllers\StaffEntryController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -75,6 +76,14 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage visitor d
     Route::post('/entry/visits/{visit}/send-back', [EntryController::class, 'sendBack'])->name('entry.visits.send-back');
     Route::post('/entry/visits/{visit}/unserved', [EntryController::class, 'unserved'])->name('entry.visits.unserved');
 });
+
+// --- Staff devices at Entry (check-in) ---
+Route::middleware(['auth', 'force.password.change', 'permission:manage staff entry'])->prefix('entry/staff')->name('entry.staff.')->group(function () {
+    Route::get('/', [StaffEntryController::class, 'index'])->name('index');
+    Route::get('/employees/{employee}', [StaffEntryController::class, 'show'])->name('show');
+    Route::post('/employees/{employee}', [StaffEntryController::class, 'store'])->name('store');
+    Route::get('/entries/{entry}', [StaffEntryController::class, 'ticket'])->name('ticket');
+});   
 
 // --- Reception, Standard House (Checkpoint 3) ---
 Route::middleware(['auth', 'force.password.change', 'permission:manage visitor reception'])->group(function () {
@@ -175,5 +184,5 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage staff dev
     Route::post('/import', [StaffImportController::class, 'store'])->name('import.store');
     Route::get('/import/{token}', [StaffImportController::class, 'show'])->whereUuid('token')->name('import.show');
     Route::post('/import/{token}/departments', [StaffImportController::class, 'departments'])->whereUuid('token')->name('import.departments');
-    Route::post('/import/{token}/apply', [StaffImportController::class, 'apply'])->whereUuid('token')->name('import.apply');
+    Route::post('/import/{token}/apply', [StaffImportController::class, 'apply'])->whereUuid('token')->name('import.apply'); 
 });

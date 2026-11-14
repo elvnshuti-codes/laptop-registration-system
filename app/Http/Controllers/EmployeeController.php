@@ -147,6 +147,7 @@ class EmployeeController extends Controller
             'name' => trim((string) $request->input('name')),
             'position' => trim((string) $request->input('position')),
             'department' => trim((string) $request->input('department')),
+            'email' => mb_strtolower(trim((string) $request->input('email'))) ?: null,
         ]);
 
         return $request->validate([
@@ -154,6 +155,7 @@ class EmployeeController extends Controller
             'name' => 'required|string|max:255',
             'department' => 'required|string|max:255',
             'position' => 'required|string|max:120',
+            'email' => ['nullable', 'email', 'max:190'],
         ]);
     }
 }

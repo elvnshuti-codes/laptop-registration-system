@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Employee extends Model
 {
     protected $fillable = [
-        'employee_id_number', 'name', 'department', 'position', 'is_active', 'needs_review', 'review_note',
+        'employee_id_number', 'name', 'department', 'email', 'position', 'is_active', 'needs_review', 'review_note',
     ];
 
     protected function casts(): array

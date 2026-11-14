@@ -33,7 +33,7 @@
                 @foreach ($employees as $employee)
                     <tr>
                         <td class="font-monospace fw-semibold">{{ $employee->employee_id_number }}</td>
-                        <td>{{ $employee->name }}</td>
+                        <td>{{ $employee->name }}@if ($employee->email)<div class="small text-muted">{{ $employee->email }}</div>@endif</td>
                         <td>{{ $employee->position }}</td>
                         <td>{{ $employee->department }}</td>
                         <td data-order="{{ $employee->organization_count + $employee->personal_count }}">

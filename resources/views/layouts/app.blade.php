@@ -113,8 +113,12 @@
             $stations[] = ['group' => 'Main Gate', 'flat' => 'Check-Out', 'item' => 'Check-Out', 'url' => route('gate.checkout.index'), 'active' => $on('gate.checkout.*')];
         }
         if ($u->can('manage visitor devices')) {
-            $stations[] = ['group' => 'Entry', 'flat' => 'Entry', 'item' => 'Visitor devices', 'url' => route('entry.index'), 'active' => $on('entry.*')];
+            $stations[] = ['group' => 'Entry', 'flat' => 'Entry', 'item' => 'Visitor devices', 'url' => route('entry.index'), 'active' => $on('entry.*') && ! $on('entry.staff.*')];
         }
+        if ($u->can('manage staff entry')) {
+            $stations[] = ['group' => 'Entry', 'flat' => 'Staff devices', 'item' => 'Staff devices', 'url' => route('entry.staff.index'), 'active' => $on('entry.staff.*')];
+        }
+        
         if ($u->can('manage visitor reception')) {
             $stations[] = ['group' => 'Reception', 'flat' => 'Reception', 'item' => 'Standard House', 'url' => route('reception.index'), 'active' => $on('reception.*')];
         }

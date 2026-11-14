@@ -8,18 +8,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
+
 
 class StaffDeviceController extends Controller
 {
     public const OWNER_TYPES = ['organization' => 'Organization', 'personal' => 'Personal'];
     public const DEVICE_TYPES = ['Laptop', 'Tablet'];
-
-    // Barcode prefix by owner and device type: UL = UNBS laptop, UT = UNBS tablet, PL = personal laptop, PT = personal tablet.
-    public const CODE_PREFIXES = [
-        'organization' => ['Laptop' => 'UL', 'Tablet' => 'UT'],
-        'personal' => ['Laptop' => 'PL', 'Tablet' => 'PT'],
-    ];
 
     public const MAX_ORGANIZATION = 1;
     public const MAX_PERSONAL = 2;
@@ -82,6 +76,7 @@ class StaffDeviceController extends Controller
         }
 
         $device = DB::transaction(function () use ($employee, $data, $request) {
+
             // The row is created first so its own number is available for the code.
             $device = $employee->devices()->create($data + [
                 'sticker_code' => 'TMP-' . Str::uuid(),
@@ -90,7 +85,7 @@ class StaffDeviceController extends Controller
             ]);
 
             $device->update([
-                'sticker_code' => $this->makeCode($data['owner_type'], $data['device_type'], $data['asset_tag'], $device->id),
+                'sticker_code' => StaffDevice::makeCode($data['owner_type'], $data['device_type'], $data['asset_tag'], $device->id),
             ]);
 
             return $device;
@@ -113,30 +108,7 @@ class StaffDeviceController extends Controller
         return back()->with('success', "{$device->sticker_code} " . ($device->is_active ? 'is active again.' : 'was retired.'));
     }
 
-    // UNBS devices: the last digits of the asset tag (154-IT-LP-1365 -> UL-01365).
-    // Anything else, or a tag without trailing digits: the device's own number.
-    // A code that is already taken gets a letter: UL-01365, UL-01365A, UL-01365B...
-    private function makeCode(string $ownerType, string $deviceType, ?string $assetTag, int $number): string
-    {
-        $prefix = self::CODE_PREFIXES[$ownerType][$deviceType];
-
-        if ($ownerType === 'organization' && $assetTag && preg_match('/(\d+)$/', $assetTag, $m)) {
-            $base = sprintf('%s-%05d', $prefix, (int) substr($m[1], -4));
-        } else {
-            $base = sprintf('%s-%05d', $prefix, $number);
-        }
-
-        foreach (array_merge([''], range('A', 'Z')) as $letter) {
-            if (! StaffDevice::where('sticker_code', $base . $letter)->exists()) {
-                return $base . $letter;
-            }
-        }
-
-        throw ValidationException::withMessages([
-            'asset_tag' => 'Too many devices end with the same digits. Please tell the administrator.',
-        ]);
-    }
-
+    
     // Serial numbers and asset tags: uppercase, no spaces.
     private function clean(mixed $value): string
     {

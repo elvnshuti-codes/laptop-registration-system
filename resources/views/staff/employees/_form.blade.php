@@ -24,12 +24,13 @@
 
 <div class="mb-3">
     <label for="position" class="form-label fw-semibold">Position</label>
-    <select id="position" name="position" class="form-select" required>
-        <option value="">Select a position...</option>
+    <input type="text" id="position" name="position" maxlength="120" list="position-list"
+           value="{{ old('position', $e?->position) }}" class="form-control" required>
+    <datalist id="position-list">
         @foreach ($positions as $position)
-            <option value="{{ $position }}" @selected(old('position', $e?->position) === $position)>{{ $position }}</option>
+            <option value="{{ $position }}"></option>
         @endforeach
-    </select>
+    </datalist>
 </div>
 
 <div class="mb-3">

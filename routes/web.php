@@ -20,6 +20,7 @@ use App\Http\Controllers\ReportAccessController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\StaffDeviceController;
 use App\Http\Controllers\StaffStickerController;
+use App\Http\Controllers\StaffImportController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -167,4 +168,12 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage staff dev
     Route::get('/employees/{employee}/stickers', [StaffStickerController::class, 'employee'])->name('stickers.employee');
     Route::get('/stickers/pending', [StaffStickerController::class, 'pending'])->name('stickers.pending');
     Route::post('/stickers/printed', [StaffStickerController::class, 'markPrinted'])->name('stickers.printed');
+    Route::post('/employees/{employee}/reviewed', [EmployeeController::class, 'reviewed'])->name('employees.reviewed');
+    Route::get('/employees/{employee}/merge', [EmployeeController::class, 'mergeForm'])->name('employees.merge.form');
+    Route::post('/employees/{employee}/merge', [EmployeeController::class, 'merge'])->name('employees.merge');
+    Route::get('/import', [StaffImportController::class, 'create'])->name('import.create');
+    Route::post('/import', [StaffImportController::class, 'store'])->name('import.store');
+    Route::get('/import/{token}', [StaffImportController::class, 'show'])->whereUuid('token')->name('import.show');
+    Route::post('/import/{token}/departments', [StaffImportController::class, 'departments'])->whereUuid('token')->name('import.departments');
+    Route::post('/import/{token}/apply', [StaffImportController::class, 'apply'])->whereUuid('token')->name('import.apply');
 });

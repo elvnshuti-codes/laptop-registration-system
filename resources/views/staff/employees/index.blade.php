@@ -9,6 +9,7 @@
         <div class="text-muted">The staff list that devices are registered against.</div>
     </div>
     <div class="d-flex gap-2">
+        <a href="{{ route('staff.import.create') }}" class="btn btn-outline-dark">Import from Excel</a>
         <a href="{{ route('staff.stickers.pending') }}" class="btn btn-outline-dark">Print unprinted stickers</a>
         <a href="{{ route('staff.employees.create') }}" class="btn btn-primary">+ Add employee</a>
     </div>
@@ -53,9 +54,22 @@
                             @else
                                 <span class="badge bg-secondary">Inactive</span>
                             @endif
+                            @if ($employee->needs_review)
+                                <div class="mt-1"><span class="badge bg-warning text-dark">Needs review</span></div>
+                                <div class="small text-muted" style="max-width: 280px">{{ $employee->review_note }}</div>
+                            @endif
                         </td>
                         <td class="text-end">
                             <div class="d-flex justify-content-end gap-1">
+                            @if (str_starts_with($employee->employee_id_number, 'TEMP-'))
+                                    <a href="{{ route('staff.employees.merge.form', $employee) }}" class="btn btn-sm btn-primary">Merge</a>
+                                @endif
+                                @if ($employee->needs_review)
+                                    <form method="POST" action="{{ route('staff.employees.reviewed', $employee) }}">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-warning">Reviewed</button>
+                                    </form>
+                                @endif
                                 <a href="{{ route('staff.devices.index', $employee) }}" class="btn btn-sm btn-outline-dark">Devices</a>
                                 <a href="{{ route('staff.employees.edit', $employee) }}" class="btn btn-sm btn-outline-primary">Edit</a>
                                 <form method="POST" action="{{ route('staff.employees.toggle', $employee) }}">

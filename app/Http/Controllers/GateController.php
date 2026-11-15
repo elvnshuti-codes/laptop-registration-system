@@ -47,6 +47,12 @@ class GateController extends Controller
 
         return null;
     }
+    
+    // The Gate start screen: big tiles for what the officer does.
+    public function home()
+    {
+        return view('gate.home');
+    }
 
     // Shows the Gate check-in form. With ?booking=CODE the form is pre-filled.
     public function create(Request $request)

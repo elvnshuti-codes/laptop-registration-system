@@ -23,9 +23,7 @@ use App\Http\Controllers\StaffStickerController;
 use App\Http\Controllers\StaffImportController;
 use App\Http\Controllers\StaffEntryController;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', [AuthController::class, 'home'])->name('home');
 
 // --- Authentication ---
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -48,6 +46,7 @@ Route::resource('registrations', LaptopRegistrationController::class)
 
 // --- Visitor management: Gate (Checkpoint 1) ---
 Route::middleware(['auth', 'force.password.change', 'permission:manage gate visitors'])->group(function () {
+    Route::get('/gate', [GateController::class, 'home'])->name('gate.home');
     Route::get('/gate/create', [GateController::class, 'create'])->name('gate.create');
     Route::post('/gate', [GateController::class, 'store'])->name('gate.store');
     Route::get('/gate/{visit}/ticket', [GateController::class, 'ticket'])->name('gate.ticket');

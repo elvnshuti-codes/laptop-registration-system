@@ -9,7 +9,17 @@ class AuthController extends Controller
 {
     public function showLoginForm()
     {
+        if (Auth::check()) {
+            return $this->redirectToHome();
+        }
+
         return view('auth.login');
+    }
+
+    // The web address "/": sign-in page for guests, their own home for signed-in users.
+    public function home()
+    {
+        return Auth::check() ? $this->redirectToHome() : redirect()->route('login');
     }
 
     public function login(Request $request)
@@ -87,7 +97,7 @@ class AuthController extends Controller
     
             // Screens that belong to a station, in the order they are checked.
             $landing = [
-                'manage gate visitors' => 'gate.create',
+                'manage gate visitors' => 'gate.home',
                 'manage visitor devices' => 'entry.index',
                 'manage visitor reception' => 'reception.index',
                 'manage sample reception' => 'sample.index',

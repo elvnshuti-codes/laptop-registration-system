@@ -1,6 +1,18 @@
 @php
-    // The Entry screens return here after a quiet moment while kiosk mode is on.
-    $kioskHome = request()->routeIs('entry.*') ? route('entry.index') : null;
+    // $kioskAllowed: this screen may use kiosk mode (set by the page that includes this file).
+    // $kioskControls: show the Kiosk mode and Keyboard buttons (hidden on the sign-in page).
+    $kioskAllowed = $kioskAllowed ?? false;
+    $kioskControls = $kioskControls ?? $kioskAllowed;
+
+    // In kiosk mode these screens return to their home after a quiet moment.
+    $kioskHome = request()->routeIs('entry.*') ? route('entry.index')
+        : (request()->routeIs('gate.*') ? route('gate.home') : null);
+
+    // The long visitor form is not sent home; the sign-out timer still protects it.
+    $returnHomeSeconds = request()->routeIs('gate.create') ? 0 : (int) config('vms.kiosk_return_home_seconds', 90);
+    $logoutSeconds = auth()->check()
+        ? ($kioskAllowed ? null : (int) config('vms.laptop_logout_seconds', 1800))
+        : 0;
 @endphp
 
 <style>
@@ -33,14 +45,26 @@
     #osk button.hide { background: #6c757d; flex: 1.6 1 0; }
     #osk button.on { background: #ffc107; color: #000; }
 
-    @media print { #kiosk-controls, #osk { display: none !important; } }
+    @media print { #kiosk-controls, #osk, #idle-warning { display: none !important; } }
 </style>
 
-<div id="kiosk-controls">
-    <button type="button" id="osk-open" class="btn btn-secondary shadow">Keyboard</button>
-    <button type="button" id="kiosk-toggle" class="btn btn-dark shadow">Kiosk mode</button>
-</div>
+@if ($kioskControls)
+    <div id="kiosk-controls">
+        <button type="button" id="osk-open" class="btn btn-secondary shadow">Keyboard</button>
+        <button type="button" id="kiosk-toggle" class="btn btn-dark shadow">Kiosk mode</button>
+    </div>
+@endif
+
 <div id="osk" aria-label="On-screen keyboard"></div>
+
+@auth
+    <form id="auto-logout" method="POST" action="{{ route('logout') }}" class="d-none">@csrf</form>
+
+    <div id="idle-warning" class="alert alert-warning shadow d-none" role="alert"
+         style="position: fixed; left: 50%; bottom: 1rem; transform: translateX(-50%); z-index: 1070; max-width: 92vw; margin: 0">
+        <strong>Still there?</strong> You will be signed out in <strong id="idle-count"></strong> seconds. Touch the screen to stay signed in.
+    </div>
+@endauth
 
 <script>
     (function () {
@@ -48,11 +72,19 @@
         const toggle = document.getElementById('kiosk-toggle');
         const openButton = document.getElementById('osk-open');
         const osk = document.getElementById('osk');
-        const home = @json($kioskHome);
-        const idleSeconds = 90;
-        const FIELDS = 'input:not([type]), input[type=text], input[type=search], input[type=tel], input[type=email], input[type=number], input[type=url], textarea';
+        const logoutForm = document.getElementById('auto-logout');
+        const warning = document.getElementById('idle-warning');
+        const countdown = document.getElementById('idle-count');
 
-        let timer = null;
+        const allowed = @json($kioskAllowed);
+        const home = @json($kioskHome);
+        const returnHomeSeconds = @json($returnHomeSeconds);
+        const kioskLogoutSeconds = @json((int) config('vms.kiosk_logout_seconds', 300));
+        const laptopLogoutSeconds = @json((int) config('vms.laptop_logout_seconds', 1800));
+        const signedIn = @json(auth()->check());
+        const WARN_SECONDS = 30;
+        const FIELDS = 'input:not([type]), input[type=text], input[type=search], input[type=tel], input[type=email], input[type=number], input[type=url], input[type=password], textarea';
+
         let target = null;      // the box the keyboard types into
         let lastField = null;   // the last text box that had focus
         let touched = false;    // the current focus came from a finger, not from the page or a scanner
@@ -63,15 +95,61 @@
         function write(on) { try { localStorage.setItem('kiosk', on ? '1' : '0'); } catch (e) {} }
         function isKiosk() { return root.classList.contains('kiosk'); }
 
-        // ---------------------------------------------------------------- idle return
+        // ---------------------------------------------------------------- idle: go home, then sign out
 
-        // After a quiet moment, go back to the home screen so the next person starts clean.
-        function restartIdle() {
-            clearTimeout(timer);
+        const KEY = 'vms_last_activity';
+        let last = Date.now();
+        let written = 0;
+        let leaving = false;
 
-            if (!home || !isKiosk() || location.pathname === new URL(home).pathname) return;
+        // The clock survives page changes within the tab, so going "home" does not give a fresh 5 minutes.
+        try {
+            const previous = Number(sessionStorage.getItem(KEY)) || 0;
+            if (previous && previous <= Date.now()) last = previous;
+        } catch (e) {}
 
-            timer = setTimeout(function () { location.href = home; }, idleSeconds * 1000);
+        function activity() {
+            last = Date.now();
+
+            if (last - written > 1000) {
+                written = last;
+                try { sessionStorage.setItem(KEY, String(last)); } catch (e) {}
+            }
+        }
+
+        function tick() {
+            if (!signedIn || leaving) return;
+
+            const idle = (Date.now() - last) / 1000;
+            const limit = isKiosk() ? kioskLogoutSeconds : laptopLogoutSeconds;
+
+            if (limit > 0 && idle >= limit) {
+                leaving = true;
+                if (logoutForm) logoutForm.submit();
+                return;
+            }
+
+            if (warning && limit > WARN_SECONDS && limit - idle <= WARN_SECONDS) {
+                countdown.textContent = Math.ceil(limit - idle);
+                warning.classList.remove('d-none');
+            } else if (warning) {
+                warning.classList.add('d-none');
+            }
+
+            if (isKiosk() && home && returnHomeSeconds > 0 && idle >= returnHomeSeconds
+                && location.pathname !== new URL(home).pathname) {
+                leaving = true;
+                location.href = home;
+            }
+        }
+
+        ['pointerdown', 'keydown', 'mousemove', 'touchstart', 'wheel'].forEach(function (name) {
+            document.addEventListener(name, activity, { passive: true });
+        });
+
+        if (signedIn) {
+            activity();
+            setInterval(tick, 1000);
         }
 
         // ---------------------------------------------------------------- on-screen keyboard
@@ -220,13 +298,15 @@
             touched = false;
         });
 
-        openButton.addEventListener('click', function () {
-            const field = lastField || document.querySelector(FIELDS);
-            if (!field) return;
+        if (openButton) {
+            openButton.addEventListener('click', function () {
+                const field = lastField || document.querySelector(FIELDS);
+                if (!field) return;
 
-            field.focus();
-            openFor(field);
-        });
+                field.focus();
+                openFor(field);
+            });
+        }
 
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') closeKeyboard();
@@ -249,25 +329,21 @@
 
         function apply(on) {
             root.classList.toggle('kiosk', on);
-            toggle.textContent = on ? 'Exit kiosk mode' : 'Kiosk mode';
+            if (toggle) toggle.textContent = on ? 'Exit kiosk mode' : 'Kiosk mode';
             setInputMode(on);
 
             if (!on) closeKeyboard();
-
-            restartIdle();
         }
 
-        toggle.addEventListener('click', function () {
-            const on = !isKiosk();
-            write(on);
-            apply(on);
-        });
-
-        ['pointerdown', 'keydown', 'mousemove'].forEach(function (name) {
-            document.addEventListener(name, restartIdle, { passive: true });
-        });
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                const on = !isKiosk();
+                write(on);
+                apply(on);
+            });
+        }
 
         render();
-        apply(read());
+        apply(allowed && read());
     })();
 </script>

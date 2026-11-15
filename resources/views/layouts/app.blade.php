@@ -109,6 +109,7 @@
         // Checkpoints, in the order a visitor meets them.
         $stations = [];
         if ($u->can('manage gate visitors')) {
+            $stations[] = ['group' => 'Main Gate', 'flat' => 'Home', 'item' => 'Home', 'url' => route('gate.home'), 'active' => $on('gate.home')];
             $stations[] = ['group' => 'Main Gate', 'flat' => 'Check-In', 'item' => 'Check-In', 'url' => route('gate.create'), 'active' => $on('gate.create', 'gate.ticket')];
             $stations[] = ['group' => 'Main Gate', 'flat' => 'Check-Out', 'item' => 'Check-Out', 'url' => route('gate.checkout.index'), 'active' => $on('gate.checkout.*')];
         }
@@ -246,8 +247,10 @@
     <script src="{{ asset('vendor/datatables/dataTables.bootstrap5.min.js') }}"></script>
     <script src="{{ asset('vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
 
-    @can('use kiosk mode')
-    @include('layouts._kiosk')
-@endcan
+    @yield('scripts')
+
+@auth
+    @include('layouts._kiosk', ['kioskAllowed' => auth()->user()->can('use kiosk mode')])
+@endauth
 </body>
 </html>

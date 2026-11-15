@@ -29,6 +29,12 @@
                         <th class="text-muted fw-normal">Checked In</th>
                         <td>{{ \Carbon\Carbon::parse($visit->gate_checked_in_at)->format('d M Y, H:i') }}</td>
                     </tr>
+                    @if ($visit->arrival)
+                        <tr>
+                            <th class="text-muted fw-normal">Arrived by</th>
+                            <td>{{ $visit->arrival->label() }}</td>
+                        </tr>
+                    @endif
                 </table>
 
                 <div class="alert alert-warning mb-2">
@@ -39,6 +45,17 @@
                     <div class="small text-uppercase">Hand back</div>
                     <strong>{{ $documentName }}</strong>
                 </div>
+                @if ($visit->leftItems->isNotEmpty())
+                    <div class="alert alert-secondary mt-2 mb-0">
+                        <div class="small text-uppercase">Belongings left at the gate</div>
+                        <ul class="mb-1 ps-3">
+                            @foreach ($visit->leftItems as $item)
+                                <li>{{ $item->quantity }} &times; {{ $item->colour }} {{ $item->item_name }}</li>
+                            @endforeach
+                        </ul>
+                        <div class="small">Taken by <strong>{{ $visit->leftItems->first()->handler->name }}</strong></div>
+                    </div>
+                @endif
             </div>
             <div class="card-footer bg-white">
                 <a href="{{ route('gate.checkout.index') }}" class="btn btn-outline-secondary btn-sm">Back to list</a>

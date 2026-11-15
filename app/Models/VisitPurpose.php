@@ -24,4 +24,10 @@ class VisitPurpose extends Model
     {
         return static::where('is_testing', true)->pluck('name');
     }
+
+        // Purposes flagged as Security (uniformed officers on duty).
+        public static function securityNames()
+        {
+            return static::where('is_security', true)->pluck('name');
+        }
 }

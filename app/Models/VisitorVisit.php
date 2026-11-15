@@ -104,4 +104,24 @@ class VisitorVisit extends Model
 
         return 'At Gate';
     }
+
+    public function arrival(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Models\VisitArrival::class);
+    }
+
+    public function leftItems(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\VisitLeftItem::class);
+    }
+
+    public function security(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Models\VisitSecurityDetail::class);
+    }
+
+    public function arms(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\VisitArm::class);
+    }
 }

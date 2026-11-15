@@ -43,6 +43,12 @@
                         <th class="text-muted fw-normal">Visitor Card</th>
                         <td class="fw-semibold">{{ $visit->visitor_card_number }}</td>
                     </tr>
+                    @if ($visit->arrival)
+                        <tr>
+                            <th class="text-muted fw-normal">Arrived by</th>
+                            <td class="fw-semibold">{{ $visit->arrival->label() }}</td>
+                        </tr>
+                    @endif
                     <tr>
                         <th class="text-muted fw-normal">Checked In</th>
                         <td class="fw-semibold">
@@ -50,6 +56,40 @@
                         </td>
                     </tr>
                 </table>
+
+                @if ($visit->security)
+                    <div class="border border-dark rounded p-3 mt-3 text-start">
+                        <div class="small text-uppercase text-muted mb-1">Security officer</div>
+                        <div class="fw-semibold">{{ $visit->security->force }} &middot; {{ $visit->security->officer_rank }}</div>
+                        <div>Protecting: {{ $visit->security->vip_name }} <span class="text-muted">({{ $visit->security->vip_title }})</span></div>
+
+                        @if ($visit->arms->isNotEmpty())
+                            <div class="small text-uppercase text-muted mt-2 mb-1">Arms left at the gate</div>
+                            @foreach ($visit->arms as $arm)
+                                <div class="small">{{ $loop->iteration }}. {{ $arm->summary() }}</div>
+                            @endforeach
+                        @endif
+
+                        <div class="small mt-2">
+                            Locker key card: <strong>{{ $visit->visitor_card_number }}</strong>
+                            @if ($visit->security->locker_number) &middot; Locker <strong>{{ $visit->security->locker_number }}</strong> @endif
+                        </div>
+                        <div class="small mt-1">Handled by <strong>{{ $visit->security->handler->name }}</strong></div>
+                    </div>
+                @endif
+
+                @if ($visit->leftItems->isNotEmpty())
+                    <div class="border rounded p-3 mt-3 text-start">
+                        <div class="small text-uppercase text-muted mb-1">Left at the gate</div>
+                        @foreach ($visit->leftItems as $item)
+                            <div>
+                                {{ $item->quantity }} &times; {{ $item->colour }} {{ $item->item_name }}
+                                @if ($item->notes) <span class="text-muted">({{ $item->notes }})</span> @endif
+                            </div>
+                        @endforeach
+                        <div class="small mt-2">Handled by <strong>{{ $visit->leftItems->first()->handler->name }}</strong></div>
+                    </div>
+                @endif
             </div>
 
             <div class="card-footer bg-white py-3 small text-muted">

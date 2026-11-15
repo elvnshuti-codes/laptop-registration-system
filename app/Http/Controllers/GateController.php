@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\SampleType;
+use App\Models\VisitArm;
+use App\Models\VisitArrival;
+use App\Models\VisitSecurityDetail;
 use App\Models\VisitorBooking;
 use App\Models\VisitorVisit;
 use App\Models\VisitPurpose;
@@ -47,7 +50,7 @@ class GateController extends Controller
 
         return null;
     }
-    
+
     // The Gate start screen: big tiles for what the officer does.
     public function home()
     {
@@ -71,8 +74,16 @@ class GateController extends Controller
         $testingPurposes = VisitPurpose::testingNames();
         $sampleTypes = SampleType::options();
         $deliveredBy = self::DELIVERED_BY;
+        $arrivalModes = VisitArrival::MODES;
+        $securityPurposes = VisitPurpose::securityNames();
+        $forces = VisitSecurityDetail::FORCES;
+        $ranks = VisitSecurityDetail::RANKS;
+        $armTypes = ['Firearms' => VisitArm::FIREARMS, 'Other weapons' => VisitArm::OTHERS];
 
-        return view('gate.create', compact('booking', 'purposes', 'testingPurposes', 'sampleTypes', 'deliveredBy'));
+        return view('gate.create', compact(
+            'booking', 'purposes', 'testingPurposes', 'sampleTypes', 'deliveredBy', 'arrivalModes',
+            'securityPurposes', 'forces', 'ranks', 'armTypes'
+        ));
     }
 
     // Scan or type a booking code to open the check-in form pre-filled.
@@ -97,6 +108,9 @@ class GateController extends Controller
         // Is this visitor bringing samples? Decided by the purpose's Sample Reception switch.
         $isTesting = VisitPurpose::testingNames()->contains($request->input('purpose'));
 
+        // Is this a uniformed officer on security duty? Decided by the purpose's Security flag.
+        $isSecurity = VisitPurpose::securityNames()->contains($request->input('purpose'));
+
         // If the owner is delivering, their own mobile is the owner's phone: no need to type it twice.
         if ($isTesting
             && $request->input('delivered_by_type') === 'Owner'
@@ -116,6 +130,55 @@ class GateController extends Controller
             'visitor_mobile_number' => 'nullable|string|max:20',
             'booking_id' => 'nullable|exists:visitor_bookings,id',
         ];
+
+        $rules += [
+            'arrival_mode' => ['required', Rule::in(array_keys(VisitArrival::MODES))],
+            'number_plate' => ['nullable', 'required_if:arrival_mode,vehicle,motorcycle', 'string', 'max:40'],
+            'has_left_items' => 'nullable|boolean',
+        ];
+
+        // Belongings left at the gate: optional, but once chosen every row must be complete.
+        if ($request->boolean('has_left_items')) {
+            $rules += [
+                'items' => 'required|array|min:1|max:20',
+                'items.*.name' => 'required|string|max:120',
+                'items.*.colour' => 'required|string|max:60',
+                'items.*.quantity' => 'required|integer|min:1|max:999',
+                'items.*.notes' => 'nullable|string|max:255',
+            ];
+        }
+
+        // Security visitors: force, rank, the VIP they protect, and the arms they leave.
+        if ($isSecurity) {
+            $rules += [
+                'security_force' => ['required', Rule::in(array_keys(VisitSecurityDetail::FORCES))],
+                'officer_rank' => 'required|string|max:80',
+                'vip_name' => 'required|string|max:255',
+                'vip_title' => 'required|string|max:255',
+                'locker_number' => 'nullable|string|max:40',
+                'has_arms' => 'nullable|boolean',
+            ];
+
+            if ($request->boolean('has_arms')) {
+                $rules += [
+                    'arms' => 'required|array|min:1|max:20',
+                    'arms.*.type' => ['required', Rule::in(VisitArm::TYPES)],
+                    'arms.*.make' => ['nullable', 'string', 'max:120', 'required_if:arms.*.type,Other'],
+                    'arms.*.serial' => ['nullable', 'string', 'max:60', 'distinct', 'required_if:arms.*.type,' . implode(',', VisitArm::FIREARMS)],
+                    'arms.*.magazines' => 'nullable|integer|min:0|max:99',
+                    'arms.*.count' => [
+                        'required', 'integer', 'min:0', 'max:9999',
+                        function ($attribute, $value, $fail) use ($request) {
+                            $index = explode('.', $attribute)[1];
+                            $type = $request->input("arms.$index.type");
+                            if (! in_array($type, VisitArm::FIREARMS, true) && (int) $value < 1) {
+                                $fail('Enter how many of each item that is not a firearm (at least 1).');
+                            }
+                        },
+                    ],
+                ];
+            }
+        }
 
         // Sample details are only required for Testing visitors.
         if ($isTesting) {
@@ -144,11 +207,54 @@ class GateController extends Controller
             'samples.*.type.distinct' => 'Each sample type can only be listed once.',
             'samples.*.count.required' => 'Enter the number of samples for every row.',
             'visitor_mobile_number.required' => 'Enter the mobile number of the person delivering the samples.',
+            'arrival_mode.required' => 'Choose how the visitor arrived.',
+            'number_plate.required_if' => 'Enter the number plate.',
+            'items.required' => 'Add at least one item left at the gate, or switch that option off.',
+            'items.*.name.required' => 'Enter the item name for every row.',
+            'items.*.colour.required' => 'Enter the colour of every item.',
+            'items.*.quantity.required' => 'Enter how many of every item.',
+            'security_force.required' => 'Choose whether the officer belongs to the UPDF or the UPF.',
+            'officer_rank.required' => "Enter the officer's rank.",
+            'vip_name.required' => 'Enter the name of the VIP the officer is protecting.',
+            'vip_title.required' => "Enter the VIP's title (e.g. Minister of Trade).",
+            'arms.required' => 'Add at least one weapon, or switch that option off.',
+            'arms.*.type.required' => 'Choose the type of every weapon.',
+            'arms.*.make.required_if' => 'Describe the weapon when the type is Other.',
+            'arms.*.serial.required_if' => 'Enter the serial number of every firearm.',
+            'arms.*.serial.distinct' => 'The same serial number is listed twice.',
+            'arms.*.count.required' => 'Enter the bullets (firearms) or the quantity (other items) for every row.',
         ]);
 
         // The sample rows are saved in their own table, not on the visit.
         $samples = $validated['samples'] ?? [];
         unset($validated['samples']);
+
+        // Arrival and items are saved in their own tables, not on the visit.
+        $arrival = [
+            'mode' => $validated['arrival_mode'],
+            'plate' => $validated['arrival_mode'] === 'foot' ? null : ($validated['number_plate'] ?? null),
+        ];
+        $leftItems = $request->boolean('has_left_items') ? ($validated['items'] ?? []) : [];
+        $officerId = $request->user()->id;
+        unset($validated['arrival_mode'], $validated['number_plate'], $validated['has_left_items'], $validated['items']);
+
+        // Security details and arms also have their own tables.
+        $security = null;
+        $arms = [];
+        if ($isSecurity) {
+            $security = [
+                'force' => $validated['security_force'],
+                'rank' => trim($validated['officer_rank']),
+                'vip_name' => trim($validated['vip_name']),
+                'vip_title' => trim($validated['vip_title']),
+                'locker' => filled($validated['locker_number'] ?? null) ? trim($validated['locker_number']) : null,
+            ];
+            $arms = $request->boolean('has_arms') ? ($validated['arms'] ?? []) : [];
+        }
+        unset(
+            $validated['security_force'], $validated['officer_rank'], $validated['vip_name'], $validated['vip_title'],
+            $validated['locker_number'], $validated['has_arms'], $validated['arms']
+        );
 
         $validated['id_document_number'] = strtoupper(trim($validated['id_document_number']));
         $validated['for_sample_reception'] = $isTesting;
@@ -169,7 +275,7 @@ class GateController extends Controller
             }
         }
 
-        $visit = DB::transaction(function () use ($validated, $samples) {
+        $visit = DB::transaction(function () use ($validated, $samples, $arrival, $leftItems, $officerId, $security, $arms) {
             // If this visitor came with a booking, lock it and re-check it,
             // so one booking can never be used twice.
             $booking = null;
@@ -219,6 +325,45 @@ class GateController extends Controller
                 ]);
             }
 
+            $visit->arrival()->create([
+                'mode' => $arrival['mode'],
+                'number_plate' => filled($arrival['plate']) ? strtoupper(preg_replace('/\s+/', ' ', trim($arrival['plate']))) : null,
+            ]);
+
+            foreach ($leftItems as $row) {
+                $visit->leftItems()->create([
+                    'item_name' => trim($row['name']),
+                    'colour' => trim($row['colour']),
+                    'quantity' => (int) $row['quantity'],
+                    'notes' => filled($row['notes'] ?? null) ? trim($row['notes']) : null,
+                    'handled_by' => $officerId,
+                ]);
+            }
+
+            if ($security) {
+                $visit->security()->create([
+                    'force' => $security['force'],
+                    'officer_rank' => $security['rank'],
+                    'vip_name' => $security['vip_name'],
+                    'vip_title' => $security['vip_title'],
+                    'locker_number' => $security['locker'],
+                    'handled_by' => $officerId,
+                ]);
+
+                foreach ($arms as $row) {
+                    $firearm = in_array($row['type'], VisitArm::FIREARMS, true);
+
+                    $visit->arms()->create([
+                        'arm_type' => $row['type'],
+                        'make_model' => filled($row['make'] ?? null) ? trim($row['make']) : null,
+                        'serial_number' => filled($row['serial'] ?? null) ? strtoupper(trim($row['serial'])) : null,
+                        'magazines' => $firearm && filled($row['magazines'] ?? null) ? (int) $row['magazines'] : null,
+                        'rounds' => $firearm ? (int) $row['count'] : null,
+                        'quantity' => $firearm ? 1 : (int) $row['count'],
+                    ]);
+                }
+            }
+
             if ($booking) {
                 $booking->update([
                     'status' => 'arrived',
@@ -238,6 +383,8 @@ class GateController extends Controller
     // Shows the printable ticket after a successful check-in.
     public function ticket(VisitorVisit $visit)
     {
+        $visit->load(['arrival', 'leftItems.handler', 'security.handler', 'arms']);
+
         return view('gate.ticket', compact('visit'));
     }
 
@@ -306,7 +453,7 @@ class GateController extends Controller
                 ->with('error', "{$visit->name} has not been cleared at Entry. Send the visitor to Entry for device check-out first.");
         }
 
-        $visit->load(['devices', 'exceptions.recordedBy']);
+        $visit->load(['devices', 'exceptions.recordedBy', 'arrival', 'leftItems.handler', 'security.handler', 'arms']);
 
         return view('gate.checkout-show', compact('visit'));
     }

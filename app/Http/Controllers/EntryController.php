@@ -18,7 +18,12 @@ class EntryController extends Controller
     // Checkpoint 2 start screen (Staff / Visitor).
     public function index()
     {
-        return view('entry.index');
+        return view('entry.index', [
+            // Staff currently inside at this checkpoint (null when the officer cannot handle staff devices).
+            'staffInside' => auth()->user()->can('manage staff entry')
+                ? \App\Models\StaffEntry::whereNull('checked_out_at')->where('location', 'entry')->count()
+                : null,
+        ]);
     }
 
     // --- Location ---------------------------------------------------------

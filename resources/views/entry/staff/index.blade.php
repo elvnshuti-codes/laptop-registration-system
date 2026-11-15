@@ -8,7 +8,7 @@
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-dark text-white py-3">
                 <h4 class="mb-0">Staff devices: check in</h4>
-                <small class="opacity-75">Find the employee, tick or scan their devices, then print the ticket.</small>
+                <small class="opacity-75">Find the employee, scan their devices, then print the ticket.</small>
             </div>
             <div class="card-body p-4">
                 <form method="GET" action="{{ route('entry.staff.index') }}" class="d-flex gap-2">

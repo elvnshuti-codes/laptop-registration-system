@@ -246,6 +246,8 @@
     <script src="{{ asset('vendor/datatables/dataTables.bootstrap5.min.js') }}"></script>
     <script src="{{ asset('vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
 
-    @yield('scripts')
+    @can('use kiosk mode')
+    @include('layouts._kiosk')
+@endcan
 </body>
 </html>

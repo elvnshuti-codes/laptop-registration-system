@@ -15,7 +15,7 @@ class ReportAccessController extends Controller
     {
         $users = User::with(['roles', 'permissions'])->orderBy('name')->get();
 
-        $labels = collect(ReportAccess::REPORTS + ReportAccess::AREAS + ReportAccess::STAFF)
+        $labels = collect(ReportAccess::REPORTS + ReportAccess::AREAS + ReportAccess::STAFF + ReportAccess::SCREENS)
             ->map(fn ($item) => $item[0])
             ->all();
 
@@ -30,6 +30,7 @@ class ReportAccessController extends Controller
             'reports' => ReportAccess::REPORTS,
             'areas' => ReportAccess::AREAS,
             'staff' => ReportAccess::STAFF,
+            'screens' => ReportAccess::SCREENS,
             'direct' => $user->getDirectPermissions()->pluck('name')->all(),
             'viaRole' => $user->getPermissionsViaRoles()->pluck('name')->all(),
             'isAdmin' => $user->hasRole('Administrator'),

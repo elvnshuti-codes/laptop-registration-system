@@ -18,15 +18,20 @@ class ReportAccess
         'view sample house data' => ['Sample House data', 'Reports and records of Sample House (Testing) visitors.'],
     ];
 
-    // Staff laptop pages.
+    // Staff laptop pages. Check-in at Entry is not listed here: it comes with the Entry Officer role.
     public const STAFF = [
         'manage staff devices' => ['Manage employees and staff devices', 'The employee list, staff device registration and stickers.'],
         'view registrations' => ['View old Registrations page', 'The old laptop registrations list. It will be retired.'],
     ];
 
+    // How a person's screen behaves.
+    public const SCREENS = [
+        'use kiosk mode' => ['Kiosk mode', 'Shows the Kiosk mode switch: large touch layout and on-screen keyboard.'],
+    ];
+
     // Every permission name managed by the User access screen.
     public static function all(): array
     {
-        return array_keys(self::REPORTS + self::AREAS + self::STAFF);
+        return array_keys(self::REPORTS + self::AREAS + self::STAFF + self::SCREENS);
     }
 }

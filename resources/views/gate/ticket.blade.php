@@ -57,6 +57,18 @@
                     </tr>
                 </table>
 
+                @if ($visit->detail)
+                    <div class="border rounded p-3 mt-3 text-start">
+                        <div class="small text-uppercase text-muted mb-1">Visit details</div>
+                        @if ($visit->detail->department || $visit->detail->person_to_see)
+                            <div class="fw-semibold">
+                                {{ collect([$visit->detail->department, $visit->detail->person_to_see])->filter()->implode(' · ') }}
+                            </div>
+                        @endif
+                        <div>{{ $visit->detail->details }}</div>
+                    </div>
+                @endif
+
                 @if ($visit->security)
                     <div class="border border-dark rounded p-3 mt-3 text-start">
                         <div class="small text-uppercase text-muted mb-1">Security officer</div>

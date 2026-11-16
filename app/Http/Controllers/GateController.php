@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
 use App\Models\SampleType;
 use App\Models\VisitArm;
+use App\Models\VisitDetail;
 use App\Models\VisitArrival;
 use App\Models\VisitSecurityDetail;
 use App\Models\VisitorBooking;
@@ -78,11 +80,12 @@ class GateController extends Controller
         $securityPurposes = VisitPurpose::securityNames();
         $forces = VisitSecurityDetail::FORCES;
         $ranks = VisitSecurityDetail::RANKS;
+        $departments = Department::orderBy('name')->pluck('name');
         $armTypes = ['Firearms' => VisitArm::FIREARMS, 'Other weapons' => VisitArm::OTHERS];
 
         return view('gate.create', compact(
             'booking', 'purposes', 'testingPurposes', 'sampleTypes', 'deliveredBy', 'arrivalModes',
-            'securityPurposes', 'forces', 'ranks', 'armTypes'
+            'securityPurposes', 'forces', 'ranks', 'armTypes', 'departments'
         ));
     }
 
@@ -110,6 +113,9 @@ class GateController extends Controller
 
         // Is this a uniformed officer on security duty? Decided by the purpose's Security flag.
         $isSecurity = VisitPurpose::securityNames()->contains($request->input('purpose'));
+
+        // Every other purpose (interview, meeting, delivery...) gets a details box.
+        $needsDetails = ! $isTesting && ! $isSecurity;
 
         // If the owner is delivering, their own mobile is the owner's phone: no need to type it twice.
         if ($isTesting
@@ -145,6 +151,14 @@ class GateController extends Controller
                 'items.*.colour' => 'required|string|max:60',
                 'items.*.quantity' => 'required|integer|min:1|max:999',
                 'items.*.notes' => 'nullable|string|max:255',
+            ];
+        }
+
+        if ($needsDetails) {
+            $rules += [
+                'detail_text' => 'required|string|max:500',
+                'detail_department' => ['nullable', 'string', 'max:120', Rule::exists('departments', 'name')],
+                'detail_person' => 'nullable|string|max:255',
             ];
         }
 
@@ -213,6 +227,7 @@ class GateController extends Controller
             'items.*.name.required' => 'Enter the item name for every row.',
             'items.*.colour.required' => 'Enter the colour of every item.',
             'items.*.quantity.required' => 'Enter how many of every item.',
+            'detail_text.required' => 'Enter the details of the visit (for example: attending SACCO manager interviews).',
             'security_force.required' => 'Choose whether the officer belongs to the UPDF or the UPF.',
             'officer_rank.required' => "Enter the officer's rank.",
             'vip_name.required' => 'Enter the name of the VIP the officer is protecting.',
@@ -251,6 +266,14 @@ class GateController extends Controller
             ];
             $arms = $request->boolean('has_arms') ? ($validated['arms'] ?? []) : [];
         }
+        // What the visitor came for (non-Testing, non-Security purposes).
+        $detail = $needsDetails ? [
+            'details' => trim($validated['detail_text']),
+            'department' => filled($validated['detail_department'] ?? null) ? $validated['detail_department'] : null,
+            'person' => filled($validated['detail_person'] ?? null) ? trim($validated['detail_person']) : null,
+        ] : null;
+        unset($validated['detail_text'], $validated['detail_department'], $validated['detail_person']);
+
         unset(
             $validated['security_force'], $validated['officer_rank'], $validated['vip_name'], $validated['vip_title'],
             $validated['locker_number'], $validated['has_arms'], $validated['arms']
@@ -275,7 +298,7 @@ class GateController extends Controller
             }
         }
 
-        $visit = DB::transaction(function () use ($validated, $samples, $arrival, $leftItems, $officerId, $security, $arms) {
+        $visit = DB::transaction(function () use ($validated, $samples, $arrival, $leftItems, $officerId, $security, $arms, $detail) {
             // If this visitor came with a booking, lock it and re-check it,
             // so one booking can never be used twice.
             $booking = null;
@@ -340,6 +363,15 @@ class GateController extends Controller
                 ]);
             }
 
+            if ($detail) {
+                $visit->detail()->create([
+                    'details' => $detail['details'],
+                    'department' => $detail['department'],
+                    'person_to_see' => $detail['person'],
+                    'recorded_by' => $officerId,
+                ]);
+            }
+
             if ($security) {
                 $visit->security()->create([
                     'force' => $security['force'],
@@ -383,7 +415,7 @@ class GateController extends Controller
     // Shows the printable ticket after a successful check-in.
     public function ticket(VisitorVisit $visit)
     {
-        $visit->load(['arrival', 'leftItems.handler', 'security.handler', 'arms']);
+        $visit->load(['arrival', 'leftItems.handler', 'security.handler', 'arms', 'detail']);
 
         return view('gate.ticket', compact('visit'));
     }
@@ -453,7 +485,7 @@ class GateController extends Controller
                 ->with('error', "{$visit->name} has not been cleared at Entry. Send the visitor to Entry for device check-out first.");
         }
 
-        $visit->load(['devices', 'exceptions.recordedBy', 'arrival', 'leftItems.handler', 'security.handler', 'arms']);
+        $visit->load(['devices', 'exceptions.recordedBy', 'arrival', 'leftItems.handler', 'security.handler', 'arms', 'detail']);
 
         return view('gate.checkout-show', compact('visit'));
     }

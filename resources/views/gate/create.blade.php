@@ -261,6 +261,44 @@
                         </div>
                     </div>
 
+                    {{-- Visit details: every purpose except Testing and Security --}}
+                    <div id="detail_block" class="border rounded p-3 mb-3" style="display: none;">
+                        <h6 class="fw-bold text-primary mb-3">Visit details</h6>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="detail_department" class="form-label fw-semibold">
+                                    Department to visit <span class="text-muted fw-normal">(optional)</span>
+                                </label>
+                                <select id="detail_department" name="detail_department"
+                                        class="form-select @error('detail_department') is-invalid @enderror">
+                                    <option value="">Choose...</option>
+                                    @foreach ($departments as $department)
+                                        <option value="{{ $department }}" @selected(old('detail_department') === $department)>{{ $department }}</option>
+                                    @endforeach
+                                </select>
+                                @error('detail_department') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label for="detail_person" class="form-label fw-semibold">
+                                    Person to see <span class="text-muted fw-normal">(optional)</span>
+                                </label>
+                                <input type="text" id="detail_person" name="detail_person" maxlength="255"
+                                       class="form-control @error('detail_person') is-invalid @enderror"
+                                       value="{{ old('detail_person') }}" placeholder="Name of the staff member">
+                                @error('detail_person') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="detail_text" class="form-label fw-semibold">Details of the visit</label>
+                            <textarea id="detail_text" name="detail_text" rows="2" maxlength="500"
+                                      class="form-control @error('detail_text') is-invalid @enderror"
+                                      placeholder="Specify, e.g. Attending SACCO manager interviews">{{ old('detail_text') }}</textarea>
+                            @error('detail_text') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+
                     {{-- Security officer details --}}
                     <div id="security_block" class="border border-warning rounded p-3 mb-3" style="display: none;">
                         <h6 class="fw-bold mb-3">Security officer details</h6>
@@ -616,6 +654,21 @@
                 row.querySelectorAll('input').forEach(function (input) { input.value = ''; });
             }
         });
+    })();
+
+    // Every purpose except Testing and Security gets the "Visit details" box.
+    (function () {
+        const testing = @json($testingPurposes);
+        const security = @json($securityPurposes);
+        const purpose = document.getElementById('purpose');
+        const block = document.getElementById('detail_block');
+
+        function update() {
+            const p = purpose.value;
+            block.style.display = (p && !testing.includes(p) && !security.includes(p)) ? '' : 'none';
+        }
+        purpose.addEventListener('change', update);
+        update();
     })();
 
     // Security purpose: show the officer section, rank suggestions and arms rows.

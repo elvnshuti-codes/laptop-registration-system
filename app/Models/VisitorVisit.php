@@ -124,4 +124,8 @@ class VisitorVisit extends Model
     {
         return $this->hasMany(\App\Models\VisitArm::class);
     }
+    public function detail(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Models\VisitDetail::class);
+    }
 }

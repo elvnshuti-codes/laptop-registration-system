@@ -17,6 +17,7 @@
         transition: transform .08s ease;
     }
     .tile:hover { color: #fff; }
+    .tile.bg-warning, .tile.bg-warning:hover { color: #212529; }
     .tile:active { transform: scale(.98); }
     .tile.active { outline: 5px solid #ffc107; outline-offset: 2px; }
     .tile .tile-title { font-size: clamp(1.2rem, 1.6vw, 1.8rem); font-weight: 700; line-height: 1.2; }
@@ -61,12 +62,13 @@
         </div>
 
         <div class="col-6 col-lg-3">
-            <div class="tile disabled-tile" aria-disabled="true">
+            <a href="{{ route('entry.staff-out.start') }}" class="tile bg-warning">
                 <div>
                     <div class="tile-title">Staff check-out</div>
-                    <div class="tile-hint">Coming next</div>
+                    <div class="tile-hint">Scan the staff ticket</div>
                 </div>
-            </div>
+                <div class="tile-count">{{ $staffInside }} <span class="fs-6 fw-normal">inside</span></div>
+            </a>
         </div>
     @endif
 </div>

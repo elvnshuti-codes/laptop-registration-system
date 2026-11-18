@@ -19,12 +19,14 @@ class StaffDevice extends Model
         'employee_id', 'sticker_code', 'owner_type', 'device_type', 'make_model',
         'serial_number', 'asset_tag', 'is_active', 'sticker_printed_at', 'registered_by',
         'issued_at', 'issued_by', 'collected_at', 'collected_by', 'issue_closed_at',
+        'colour', 'seal_number', 'is_walk_in',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'is_walk_in' => 'boolean',
             'sticker_printed_at' => 'datetime',
             'issued_at' => 'datetime',
             'collected_at' => 'datetime',

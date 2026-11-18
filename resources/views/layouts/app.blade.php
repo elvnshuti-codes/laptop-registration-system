@@ -161,7 +161,10 @@
         if ($u->can('view gate items report')) {
             $insights[] = ['flat' => 'Items report', 'item' => 'Gate items report', 'url' => route('gate.items.report'), 'active' => $on('gate.items.report')];
         }
-        
+        if ($u->can('view gadgets report')) {
+            $insights[] = ['flat' => 'Walk-in gadgets', 'item' => 'Walk-in gadgets', 'url' => route('labels.gadgets.report'), 'active' => $on('labels.gadgets.report')];
+        }
+
         // Administration.
         $admin = [];
         if ($u->can('manage users')) {

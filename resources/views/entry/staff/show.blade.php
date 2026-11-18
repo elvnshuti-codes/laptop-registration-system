@@ -104,6 +104,8 @@
                     <div class="alert alert-info mb-0">
                         This employee has no registered devices. The Registration Officer can add them under Staff Laptops &rarr; Employees &rarr; Devices.
                     </div>
+
+                    @include('entry.staff.gadget-box')
                 @else
                     <form method="POST" action="{{ route('entry.staff.store', $employee) }}" id="checkin-form">
                         @csrf
@@ -163,6 +165,8 @@
                             @endif
                         </div>
                     </form>
+
+                    @include('entry.staff.gadget-box')
 
                     {{-- Issued devices that never checked out: keep them, ask Admin --}}
                     @if ($hasIssued)

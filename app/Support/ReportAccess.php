@@ -23,6 +23,7 @@ class ReportAccess
         'manage staff devices' => ['Manage employees and staff devices', 'The employee list, staff device registration and stickers.'],
         'view registrations' => ['View old Registrations page', 'The old laptop registrations list. It will be retired.'],
         'approve device requests' => ['Approve staff device requests', 'Decide requests from Entry when a UNBS device was not checked out.'],
+        'view gadgets report' => ['Walk-in gadgets report', 'See personal gadgets registered at Entry with a pre-printed sticker.'],
     ];
 
     // Belongings and arms left at the Main Gate.

@@ -22,6 +22,8 @@ use App\Http\Controllers\StaffDeviceController;
 use App\Http\Controllers\StaffStickerController;
 use App\Http\Controllers\StaffImportController;
 use App\Http\Controllers\StaffEntryController;
+use App\Http\Controllers\GadgetStickerController;
+use App\Http\Controllers\StaffGadgetController;
 
 
 Route::get('/', [AuthController::class, 'home'])->name('home');
@@ -121,6 +123,9 @@ Route::middleware(['auth', 'role:Administrator'])->group(function () {
     Route::get('/labels', [LabelController::class, 'index'])->name('labels.index');
     Route::post('/labels/stickers', [LabelController::class, 'generateStickers'])->name('labels.stickers.generate');
     Route::get('/labels/stickers/sheet', [LabelController::class, 'stickerSheet'])->name('labels.stickers.sheet');
+    Route::get('/labels/gadgets', [GadgetStickerController::class, 'index'])->name('labels.gadgets.index');
+    Route::post('/labels/gadgets', [GadgetStickerController::class, 'generate'])->name('labels.gadgets.generate');
+    Route::get('/labels/gadgets/sheet', [GadgetStickerController::class, 'sheet'])->name('labels.gadgets.sheet');
 
     Route::get('/admin/purposes', [VisitPurposeController::class, 'index'])->name('admin.purposes.index');
     Route::post('/admin/purposes', [VisitPurposeController::class, 'store'])->name('admin.purposes.store');
@@ -217,4 +222,12 @@ Route::middleware(['auth', 'force.password.change', 'permission:approve device r
     Route::post('/{deviceRequest}/approve', [\App\Http\Controllers\StaffDeviceRequestController::class, 'approve'])->name('approve');
     Route::post('/{deviceRequest}/decline', [\App\Http\Controllers\StaffDeviceRequestController::class, 'decline'])->name('decline');
     Route::post('/{deviceRequest}/release', [\App\Http\Controllers\StaffDeviceRequestController::class, 'release'])->name('release');
+});
+
+    Route::middleware(['auth', 'force.password.change', 'permission:manage staff entry'])->group(function () {
+    Route::post('/entry/staff-gadgets/{employee}', [StaffGadgetController::class, 'store'])->name('entry.staff-gadgets.store');
+});
+
+    Route::middleware(['auth', 'force.password.change', 'permission:view gadgets report'])->group(function () {
+    Route::get('/labels/gadgets/report', [GadgetStickerController::class, 'report'])->name('labels.gadgets.report');
 });

@@ -59,6 +59,16 @@
             </div>
         </div>
 
+        <div class="card shadow-sm border-0 mt-4">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-1">Walk-in gadget stickers</h5>
+                    <div class="text-muted small">For personal gadgets that are not in the system</div>
+                </div>
+                <a href="{{ route('labels.gadgets.index') }}" class="btn btn-outline-primary">Open</a>
+            </div>
+        </div>
+
     </div>
 </div>
 @endsection

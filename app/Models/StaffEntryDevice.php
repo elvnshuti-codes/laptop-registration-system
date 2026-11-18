@@ -7,7 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StaffEntryDevice extends Model
 {
-    protected $fillable = ['staff_entry_id', 'staff_device_id', 'open_device_id', 'checked_out_at'];
+    protected $fillable = [
+        'staff_entry_id', 'staff_device_id', 'open_device_id', 'checked_out_at',
+        'close_reason', 'admin_request_id',
+    ];
 
     protected function casts(): array
     {
@@ -22,5 +25,11 @@ class StaffEntryDevice extends Model
     public function device(): BelongsTo
     {
         return $this->belongsTo(StaffDevice::class, 'staff_device_id');
+    }
+
+    // The Admin approval this device was admitted with, if any.
+    public function adminRequest(): BelongsTo
+    {
+        return $this->belongsTo(StaffDeviceRequest::class, 'admin_request_id');
     }
 }

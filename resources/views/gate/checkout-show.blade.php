@@ -56,6 +56,17 @@
                         <div class="small">Taken by <strong>{{ $visit->leftItems->first()->handler->name }}</strong></div>
                     </div>
                 @endif
+                @if ($visit->security)
+                    <div class="alert alert-warning mt-2 mb-0">
+                        <div class="small text-uppercase">Security officer</div>
+                        <div class="fw-semibold">{{ $visit->security->force }} &middot; {{ $visit->security->officer_rank }}</div>
+                        <div class="small">Protecting {{ $visit->security->vip_name }} ({{ $visit->security->vip_title }})</div>
+                        @if ($visit->security->locker_number)
+                            <div class="small">Locker {{ $visit->security->locker_number }} &middot; key card {{ $visit->visitor_card_number }}</div>
+                        @endif
+                        <div class="small mt-1">Arms taken in by <strong>{{ $visit->security->handler->name }}</strong></div>
+                    </div>
+                @endif
             </div>
             <div class="card-footer bg-white">
                 <a href="{{ route('gate.checkout.index') }}" class="btn btn-outline-secondary btn-sm">Back to list</a>
@@ -104,6 +115,48 @@
                     <form method="POST" action="{{ route('gate.checkout', $visit) }}">
                         @csrf
 
+                        @if ($visit->leftItems->isNotEmpty() || $visit->arms->isNotEmpty())
+                            <div class="border border-warning rounded p-3 mb-3" id="return_block">
+                                <h6 class="fw-bold mb-1">Hand back belongings and arms</h6>
+                                <p class="small text-muted mb-3">
+                                    Tick each item once it has been handed back to the visitor.
+                                    If something cannot be returned, leave it unticked and write the reason.
+                                </p>
+
+                                @foreach ($visit->arms as $arm)
+                                    <div class="return-row mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input return-tick" type="checkbox" name="returned_arms[]"
+                                                   value="{{ $arm->id }}" id="arm_{{ $arm->id }}"
+                                                   @checked(in_array($arm->id, array_map('intval', old('returned_arms', []))))>
+                                            <label class="form-check-label fw-semibold" for="arm_{{ $arm->id }}">{{ $arm->summary() }}</label>
+                                        </div>
+                                        <input type="text" name="reasons_arms[{{ $arm->id }}]" maxlength="255"
+                                               value="{{ old('reasons_arms.' . $arm->id) }}"
+                                               class="form-control form-control-sm mt-1 return-reason"
+                                               placeholder="Why was it not returned?">
+                                    </div>
+                                @endforeach
+
+                                @foreach ($visit->leftItems as $item)
+                                    <div class="return-row mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input return-tick" type="checkbox" name="returned_items[]"
+                                                   value="{{ $item->id }}" id="item_{{ $item->id }}"
+                                                   @checked(in_array($item->id, array_map('intval', old('returned_items', []))))>
+                                            <label class="form-check-label" for="item_{{ $item->id }}">
+                                                {{ $item->quantity }} &times; {{ $item->colour }} {{ $item->item_name }}
+                                            </label>
+                                        </div>
+                                        <input type="text" name="reasons_items[{{ $item->id }}]" maxlength="255"
+                                               value="{{ old('reasons_items.' . $item->id) }}"
+                                               class="form-control form-control-sm mt-1 return-reason"
+                                               placeholder="Why was it not returned?">
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="checkbox" name="document_returned"
                                    id="document_returned" value="1" required>
@@ -120,7 +173,7 @@
                             </label>
                         </div>
 
-                        <button type="submit" class="btn btn-danger btn-lg">Confirm Check-Out</button>
+                        <button type="submit" id="confirm_checkout" class="btn btn-danger btn-lg">Confirm Check-Out</button>
                     </form>
                 @endif
 
@@ -129,4 +182,34 @@
     </div>
 
 </div>
+@endsection
+
+@section('scripts')
+<script>
+    (function () {
+        const block = document.getElementById('return_block');
+        const button = document.getElementById('confirm_checkout');
+        if (!block || !button) return;
+
+        const rows = block.querySelectorAll('.return-row');
+
+        // A row is settled when it is ticked, or a reason is written.
+        function refresh() {
+            let allSettled = true;
+
+            rows.forEach(function (row) {
+                const tick = row.querySelector('.return-tick');
+                const reason = row.querySelector('.return-reason');
+                reason.style.display = tick.checked ? 'none' : '';
+                if (!tick.checked && reason.value.trim().length < 5) allSettled = false;
+            });
+
+            button.disabled = !allSettled;
+        }
+
+        block.addEventListener('change', refresh);
+        block.addEventListener('input', refresh);
+        refresh();
+    })();
+</script>
 @endsection

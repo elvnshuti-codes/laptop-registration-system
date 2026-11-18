@@ -21,11 +21,31 @@ class VisitArm extends Model
 
     protected $fillable = [
         'visitor_visit_id', 'arm_type', 'make_model', 'serial_number', 'magazines', 'rounds', 'quantity',
+        'returned_at', 'returned_by', 'not_returned_reason',
+        'approved_at', 'approved_by', 'approved_after_exit',
+    ];
+
+    protected $casts = [
+        'returned_at' => 'datetime',
+        'approved_at' => 'datetime',
+        'approved_after_exit' => 'boolean',
     ];
 
     public function visit(): BelongsTo
     {
         return $this->belongsTo(VisitorVisit::class, 'visitor_visit_id');
+    }
+
+    // The supervisor who verified this record.
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    // The Gate officer who handed it back (or recorded why not).
+    public function returner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'returned_by');
     }
 
     public function isFirearm(): bool

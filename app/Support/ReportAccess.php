@@ -22,6 +22,13 @@ class ReportAccess
     public const STAFF = [
         'manage staff devices' => ['Manage employees and staff devices', 'The employee list, staff device registration and stickers.'],
         'view registrations' => ['View old Registrations page', 'The old laptop registrations list. It will be retired.'],
+        'approve device requests' => ['Approve staff device requests', 'Decide requests from Entry when a UNBS device was not checked out.'],
+    ];
+
+    // Belongings and arms left at the Main Gate.
+    public const GATE = [
+        'verify gate items' => ['Verify items left at the gate', 'The Items to verify screen: approve belongings and arms left at the gate.'],
+        'view gate items report' => ['Gate items accountability report', 'Who left arms and belongings, who collected them, and who verified the records.'],
     ];
 
     // How a person's screen behaves.
@@ -32,6 +39,6 @@ class ReportAccess
     // Every permission name managed by the User access screen.
     public static function all(): array
     {
-        return array_keys(self::REPORTS + self::AREAS + self::STAFF + self::SCREENS);
+        return array_keys(self::REPORTS + self::AREAS + self::STAFF + self::GATE + self::SCREENS);
     }
 }

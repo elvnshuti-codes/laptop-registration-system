@@ -11,6 +11,7 @@ class StaffEntry extends Model
     protected $fillable = [
         'token', 'employee_id', 'open_employee_id', 'location',
         'checked_in_by', 'checked_in_at', 'checked_out_by', 'checked_out_at',
+        'close_reason', 'closed_by_admin',
     ];
 
     protected function casts(): array
@@ -34,5 +35,16 @@ class StaffEntry extends Model
     public function checkedInBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'checked_in_by');
+    }
+
+    public function checkedOutBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'checked_out_by');
+    }
+
+    // Still open, and opened on an earlier day: the employee left without checking out.
+    public function isStale(): bool
+    {
+        return $this->checked_out_at === null && ! $this->checked_in_at->isToday();
     }
 }

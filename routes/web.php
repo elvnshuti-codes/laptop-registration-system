@@ -23,6 +23,7 @@ use App\Http\Controllers\StaffStickerController;
 use App\Http\Controllers\StaffImportController;
 use App\Http\Controllers\StaffEntryController;
 
+
 Route::get('/', [AuthController::class, 'home'])->name('home');
 
 // --- Authentication ---
@@ -57,6 +58,7 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage gate visi
     Route::get('/gate/{visit}/checkout', [GateController::class, 'checkoutShow'])->name('gate.checkout.show');
     Route::post('/gate/{visit}/checkout', [GateController::class, 'checkout'])->name('gate.checkout');
     Route::get('/gate/{visit}/checkout/done', [GateController::class, 'checkoutDone'])->name('gate.checkout.done');
+    Route::get('/gate/checkout/{visit}/receipt', [GateController::class, 'receipt'])->name('gate.checkout.receipt');
 });
 
 // --- Entry Officer (Checkpoint 2) ---
@@ -184,4 +186,35 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage staff dev
     Route::get('/import/{token}', [StaffImportController::class, 'show'])->whereUuid('token')->name('import.show');
     Route::post('/import/{token}/departments', [StaffImportController::class, 'departments'])->whereUuid('token')->name('import.departments');
     Route::post('/import/{token}/apply', [StaffImportController::class, 'apply'])->whereUuid('token')->name('import.apply'); 
+});
+
+    Route::middleware(['auth', 'force.password.change'])->group(function () {
+    Route::get('/gate-items', [\App\Http\Controllers\GateItemController::class, 'index'])
+        ->middleware('permission:verify gate items')->name('gate.items.index');
+    Route::post('/gate-items/{visit}/approve', [\App\Http\Controllers\GateItemController::class, 'approve'])
+        ->middleware('permission:verify gate items')->name('gate.items.approve');
+    Route::get('/gate-items/report', [\App\Http\Controllers\GateItemController::class, 'report'])
+        ->middleware('permission:view gate items report')->name('gate.items.report');
+
+});
+   
+Route::middleware(['auth', 'force.password.change', 'permission:manage staff entry'])->group(function () {
+    Route::get('/entry/staff-checkout', [\App\Http\Controllers\StaffCheckoutController::class, 'start'])->name('entry.staff-out.start');
+    Route::get('/entry/staff-checkout/slip', [\App\Http\Controllers\StaffCheckoutController::class, 'slip'])->name('entry.staff-out.slip');
+    Route::get('/entry/staff-checkout/{employee}', [\App\Http\Controllers\StaffCheckoutController::class, 'show'])->name('entry.staff-out.show');
+    Route::post('/entry/staff-checkout/{employee}', [\App\Http\Controllers\StaffCheckoutController::class, 'store'])->name('entry.staff-out.store');
+    Route::post('/entry/staff-requests/{employee}', [\App\Http\Controllers\StaffDeviceRequestController::class, 'store'])->name('entry.staff-requests.store');
+});
+
+Route::middleware(['auth', 'force.password.change', 'permission:manage staff devices'])->group(function () {
+    Route::get('/issued-devices', [\App\Http\Controllers\StaffIssueController::class, 'index'])->name('issued.index');
+    Route::post('/issued-devices/{device}/issue', [\App\Http\Controllers\StaffIssueController::class, 'issue'])->name('issued.issue');
+    Route::post('/issued-devices/{device}/collect', [\App\Http\Controllers\StaffIssueController::class, 'collect'])->name('issued.collect');
+});
+
+Route::middleware(['auth', 'force.password.change', 'permission:approve device requests'])->prefix('admin/device-requests')->name('admin.device-requests.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\StaffDeviceRequestController::class, 'index'])->name('index');
+    Route::post('/{deviceRequest}/approve', [\App\Http\Controllers\StaffDeviceRequestController::class, 'approve'])->name('approve');
+    Route::post('/{deviceRequest}/decline', [\App\Http\Controllers\StaffDeviceRequestController::class, 'decline'])->name('decline');
+    Route::post('/{deviceRequest}/release', [\App\Http\Controllers\StaffDeviceRequestController::class, 'release'])->name('release');
 });

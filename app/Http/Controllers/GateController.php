@@ -519,14 +519,76 @@ class GateController extends Controller
             'card_collected.accepted' => 'Confirm that the visitor card was collected.',
         ]);
 
-        $visit->update([
-            'gate_checked_out_at' => now(),
-            'document_returned_at' => now(),
-        ]);
+        // Every belonging and weapon left at the gate must be accounted for:
+        // ticked as handed back, or given a reason why it was not returned.
+        $visit->load(['leftItems', 'arms']);
+
+        $returnedItems = array_map('intval', (array) $request->input('returned_items', []));
+        $returnedArms = array_map('intval', (array) $request->input('returned_arms', []));
+        $itemReasons = (array) $request->input('reasons_items', []);
+        $armReasons = (array) $request->input('reasons_arms', []);
+
+        $problems = [];
+        foreach ($visit->leftItems as $item) {
+            $reason = trim((string) ($itemReasons[$item->id] ?? ''));
+            if (! in_array($item->id, $returnedItems, true) && mb_strlen($reason) < 5) {
+                $problems[] = "Tick \"{$item->item_name}\" as handed back, or write why it was not returned.";
+            }
+        }
+        foreach ($visit->arms as $arm) {
+            $reason = trim((string) ($armReasons[$arm->id] ?? ''));
+            if (! in_array($arm->id, $returnedArms, true) && mb_strlen($reason) < 5) {
+                $problems[] = "Tick {$arm->summary()} as handed back, or write why it was not returned.";
+            }
+        }
+
+        if ($problems) {
+            return back()->withInput()->withErrors(['returns' => $problems]);
+        }
+
+        DB::transaction(function () use ($request, $visit, $returnedItems, $returnedArms, $itemReasons, $armReasons) {
+            $officerId = $request->user()->id;
+
+            foreach ($visit->leftItems as $item) {
+                $item->update(in_array($item->id, $returnedItems, true)
+                    ? ['returned_at' => now(), 'returned_by' => $officerId, 'not_returned_reason' => null]
+                    : ['returned_at' => null, 'returned_by' => $officerId, 'not_returned_reason' => trim($itemReasons[$item->id])]);
+            }
+
+            foreach ($visit->arms as $arm) {
+                $arm->update(in_array($arm->id, $returnedArms, true)
+                    ? ['returned_at' => now(), 'returned_by' => $officerId, 'not_returned_reason' => null]
+                    : ['returned_at' => null, 'returned_by' => $officerId, 'not_returned_reason' => trim($armReasons[$arm->id])]);
+            }
+
+            $visit->update([
+                'gate_checked_out_at' => now(),
+                'document_returned_at' => now(),
+            ]);
+        });
+
+        // Visitors who left things at the gate get a printable return receipt.
+        if ($visit->leftItems->isNotEmpty() || $visit->arms->isNotEmpty()) {
+            return redirect()
+                ->route('gate.checkout.receipt', $visit)
+                ->with('success', "{$visit->name} checked out.");
+        }
 
         return redirect()
             ->route('gate.checkout.done', $visit)
             ->with('success', "{$visit->name} checked out.");
+    }
+
+    // Printable receipt: what was handed back to the visitor at check-out.
+    public function receipt(VisitorVisit $visit)
+    {
+        if (! $visit->gate_checked_out_at) {
+            return redirect()->route('gate.checkout.show', $visit);
+        }
+
+        $visit->load(['leftItems.handler', 'leftItems.returner', 'arms.returner', 'security.handler']);
+
+        return view('gate.receipt', compact('visit'));
     }
 
     // Summary of the completed visit.

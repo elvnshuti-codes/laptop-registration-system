@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Validation\ValidationException;
@@ -17,6 +18,7 @@ class StaffDevice extends Model
     protected $fillable = [
         'employee_id', 'sticker_code', 'owner_type', 'device_type', 'make_model',
         'serial_number', 'asset_tag', 'is_active', 'sticker_printed_at', 'registered_by',
+        'issued_at', 'issued_by', 'collected_at', 'collected_by', 'issue_closed_at',
     ];
 
     protected function casts(): array
@@ -24,6 +26,9 @@ class StaffDevice extends Model
         return [
             'is_active' => 'boolean',
             'sticker_printed_at' => 'datetime',
+            'issued_at' => 'datetime',
+            'collected_at' => 'datetime',
+            'issue_closed_at' => 'datetime',
         ];
     }
 
@@ -35,6 +40,33 @@ class StaffDevice extends Model
     public function registrar(): BelongsTo
     {
         return $this->belongsTo(User::class, 'registered_by');
+    }
+
+    public function issuer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'issued_by');
+    }
+
+    public function collector(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'collected_by');
+    }
+
+    // Issued to the employee inside the premises and not yet checked out or cleared by Admin.
+    public function scopeIssuedOpen(Builder $query): Builder
+    {
+        return $query->whereNotNull('issued_at')->whereNull('issue_closed_at');
+    }
+
+    public function isIssuedOpen(): bool
+    {
+        return $this->issued_at !== null && $this->issue_closed_at === null;
+    }
+
+    // "Laptop Lenovo ThinkPad (UL-01365)"
+    public function label(): string
+    {
+        return trim($this->device_type . ' ' . $this->make_model) . ' (' . $this->sticker_code . ')';
     }
 
     // UNBS devices: the last digits of the asset tag (154-IT-LP-1365 -> UL-01365).

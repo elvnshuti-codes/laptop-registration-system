@@ -34,6 +34,7 @@
                                 ['Reports this person can use', 'rep', $reports],
                                 ['Areas this person can see', 'area', $areas],
                                 ['Staff laptops', 'staff', $staff],
+                                ['Gate items', 'gate', $gate],
                                 ['Screen options', 'screen', $screens],
                             ];
                         @endphp

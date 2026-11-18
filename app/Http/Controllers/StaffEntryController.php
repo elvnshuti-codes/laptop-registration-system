@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
+use App\Models\StaffDeviceRequest;
 use App\Models\StaffEntry;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -44,10 +45,56 @@ class StaffEntryController extends Controller
     // One employee: confirm who they are and choose the devices they bring in.
     public function show(Employee $employee)
     {
+        $open = StaffEntry::with(['devices.device', 'checkedInBy'])
+            ->where('employee_id', $employee->id)->whereNull('checked_out_at')->first();
+
+        // An entry from an earlier day that was never closed: if only personal gadgets are left on it,
+        // it closes by itself. UNBS devices left on it must be cleared by Admin.
+        if ($open && $open->isStale()) {
+            $unbsOpen = $open->devices->filter(
+                fn ($row) => $row->open_device_id && $row->device->owner_type === 'organization'
+            );
+
+            if ($unbsOpen->isEmpty()) {
+                StaffDeviceRequestController::closeEntry($open, 'auto_personal', null);
+                $open = null;
+            }
+        }
+
+        $stale = $open !== null && $open->isStale();
+        $devices = $employee->devices()->where('is_active', true)->orderBy('owner_type')->orderBy('device_type')->get();
+
+        $staleDevices = $stale
+            ? $open->devices->filter(fn ($row) => $row->open_device_id && $row->device->owner_type === 'organization')
+            : collect();
+
+        $staleRequest = $stale
+            ? StaffDeviceRequest::where('type', 'stale_entry')->where('staff_entry_id', $open->id)->latest('id')->first()
+            : null;
+
+        // The latest request for each issued device (pending, declined or approved today).
+        $deviceRequests = StaffDeviceRequest::where('type', 'issued_device')
+            ->whereIn('staff_device_id', $devices->pluck('id'))
+            ->whereIn('status', ['pending', 'declined', 'approved'])
+            ->latest('id')->get()
+            ->filter(fn ($r) => $r->status !== 'approved' || ($r->decided_at && $r->decided_at->isToday()))
+            ->unique('staff_device_id')->keyBy('staff_device_id');
+
+        // Approved today and not yet used: the devices may now be checked in.
+        $approvedToday = StaffDeviceRequest::where('employee_id', $employee->id)
+            ->where('status', 'approved')->whereNull('used_at')->latest('id')->get()
+            ->filter(fn ($r) => $r->decided_at && $r->decided_at->isToday());
+
         return view('entry.staff.show', [
             'employee' => $employee,
-            'open' => StaffEntry::where('employee_id', $employee->id)->whereNull('checked_out_at')->first(),
-            'devices' => $employee->devices()->where('is_active', true)->orderBy('owner_type')->orderBy('device_type')->get(),
+            'open' => $open,
+            'stale' => $stale,
+            'devices' => $devices,
+            'staleDevices' => $staleDevices,
+            'staleRequest' => $staleRequest,
+            'deviceRequests' => $deviceRequests,
+            'approvedToday' => $approvedToday,
+            'issuedOpenIds' => $devices->filter(fn ($d) => $d->isIssuedOpen())->pluck('id')->all(),
         ]);
     }
 
@@ -68,8 +115,45 @@ class StaffEntryController extends Controller
             return back()->withErrors(['codes' => 'A scanned sticker does not belong to this employee, or the device was retired.']);
         }
 
+        // Already inside, or an old entry that was never checked out: no new check-in until that is dealt with.
+        $open = StaffEntry::where('employee_id', $employee->id)->whereNull('checked_out_at')->first();
+        if ($open) {
+            $message = $open->isStale()
+                ? 'Not checked out since ' . $open->checked_in_at->format('d M Y, H:i') . '. Check-in is refused until Admin clears it.'
+                : 'This person is already checked in.';
+
+            return redirect()->route('entry.staff.show', $employee)->withErrors(['devices' => $message]);
+        }
+
+        // UNBS devices that were issued to the employee and never checked out are refused.
+        $blocked = $devices->filter(fn ($device) => $device->isIssuedOpen());
+        if ($blocked->isNotEmpty()) {
+            $list = $blocked->map(fn ($device) => $device->label() . ' (issued ' . $device->issued_at->format('d M Y, H:i') . ')')->implode(', ');
+
+            return redirect()->route('entry.staff.show', $employee)->withErrors([
+                'devices' => "Refused: {$list} was issued and never checked out. Keep the device and send a request to Admin.",
+            ]);
+        }
+
+        // Approvals from Admin, given today and not yet used, cover these devices.
+        $covered = [];
+        $approved = StaffDeviceRequest::where('employee_id', $employee->id)
+            ->where('status', 'approved')->whereNull('used_at')->get()
+            ->filter(fn ($r) => $r->decided_at && $r->decided_at->isToday());
+
+        foreach ($approved as $approval) {
+            if ($approval->type === 'issued_device' && $approval->staff_device_id) {
+                $covered[$approval->staff_device_id] = $approval;
+            }
+            if ($approval->type === 'stale_entry') {
+                foreach ((array) $approval->device_ids as $deviceId) {
+                    $covered[$deviceId] = $approval;
+                }
+            }
+        }
+
         try {
-            $entry = DB::transaction(function () use ($request, $employee, $devices) {
+            $entry = DB::transaction(function () use ($request, $employee, $devices, $covered) {
                 $entry = StaffEntry::create([
                     'token' => 'ST-' . Str::upper(Str::random(10)),
                     'employee_id' => $employee->id,
@@ -79,8 +163,23 @@ class StaffEntryController extends Controller
                     'checked_in_at' => now(),
                 ]);
 
+                $usedRequestIds = [];
                 foreach ($devices as $device) {
-                    $entry->devices()->create(['staff_device_id' => $device->id, 'open_device_id' => $device->id]);
+                    $approval = $covered[$device->id] ?? null;
+                    $entry->devices()->create([
+                        'staff_device_id' => $device->id,
+                        'open_device_id' => $device->id,
+                        'admin_request_id' => $approval?->id,
+                    ]);
+
+                    if ($approval) {
+                        $usedRequestIds[] = $approval->id;
+                    }
+                }
+
+                if ($usedRequestIds) {
+                    StaffDeviceRequest::whereIn('id', array_unique($usedRequestIds))
+                        ->update(['status' => 'used', 'used_at' => now(), 'open_key' => null]);
                 }
 
                 return $entry;

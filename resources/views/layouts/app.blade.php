@@ -132,8 +132,14 @@
         if ($u->can('manage staff devices')) {
             $staff[] = ['flat' => 'Staff Laptops', 'item' => 'Employees', 'url' => route('staff.employees.index'), 'active' => $on('staff.employees.*')];
         }
+        if ($u->can('manage staff entry')) {
+            $stations[] = ['group' => 'Entry', 'flat' => 'Staff check-out', 'item' => 'Staff check-out', 'url' => route('entry.staff-out.start'), 'active' => $on('entry.staff-out.*')];
+        }
         if ($u->can('view registrations')) {
             $staff[] = ['flat' => 'Staff Laptops', 'item' => 'Registrations', 'url' => route('registrations.index'), 'active' => $on('registrations.*')];
+        }
+        if ($u->can('manage staff devices')) {
+            $staff[] = ['flat' => 'Issued devices', 'item' => 'Issued devices', 'url' => route('issued.index'), 'active' => $on('issued.*')];
         }
 
         // Reports.
@@ -144,11 +150,26 @@
         if ($u->can('view visitor records')) {
             $insights[] = ['flat' => 'Records', 'item' => 'Visitor records', 'url' => route('records.index'), 'active' => $on('records.*')];
         }
-
+         
+        if ($u->can('verify gate items')) {
+            $pendingItems = \App\Models\VisitorVisit::query()
+                ->where(fn ($q) => $q->whereHas('leftItems', fn ($i) => $i->whereNull('approved_at'))
+                    ->orWhereHas('arms', fn ($i) => $i->whereNull('approved_at')))
+                ->count();
+            $insights[] = ['flat' => 'Items to verify', 'item' => 'Items to verify' . ($pendingItems ? " ({$pendingItems})" : ''), 'url' => route('gate.items.index'), 'active' => $on('gate.items.index', 'gate.items.approve')];
+        }
+        if ($u->can('view gate items report')) {
+            $insights[] = ['flat' => 'Items report', 'item' => 'Gate items report', 'url' => route('gate.items.report'), 'active' => $on('gate.items.report')];
+        }
+        
         // Administration.
         $admin = [];
         if ($u->can('manage users')) {
             $admin[] = ['group' => 'People and access', 'label' => 'Users', 'url' => route('users.index'), 'active' => $on('users.*')];
+        }
+        if ($u->can('approve device requests')) {
+            $pendingRequests = \App\Models\StaffDeviceRequest::where('status', 'pending')->count();
+            $admin[] = ['group' => 'Staff devices', 'label' => 'Device requests' . ($pendingRequests ? " ({$pendingRequests})" : ''), 'url' => route('admin.device-requests.index'), 'active' => $on('admin.device-requests.*')];
         }
         if ($isAdmin) {
             $admin[] = ['group' => 'People and access', 'label' => 'User access', 'url' => route('admin.report-access.index'), 'active' => $on('admin.report-access.*')];

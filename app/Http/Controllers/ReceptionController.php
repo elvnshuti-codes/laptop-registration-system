@@ -2,14 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
 use App\Models\VisitException;
 use App\Models\VisitorReception;
 use App\Models\VisitorVisit;
+use App\Models\VisitPurpose;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class ReceptionController extends Controller
 {
+    // Where a delivery is going.
+    public const DELIVERY_TO = ['individual' => 'An individual', 'stores' => 'UNBS Stores'];
+
     // Minutes a visitor may wait before the wait badge turns amber / red.
     private const WAIT_WARN = 30;
     private const WAIT_LATE = 60;
@@ -35,7 +42,7 @@ class ReceptionController extends Controller
 
     private function notPassedEntryMessage(VisitorVisit $visit): string
     {
-        return "{$visit->name} has not been through Entry yet. Send the visitor to the Entry checkpoint first.";
+        return "{$visit->name} has not been through Entry yet. Send the visitor to the Entrycheckpoint first.";
     }
 
     // Testing visitors are served at Sample Reception, not here.
@@ -134,9 +141,76 @@ class ReceptionController extends Controller
                 ->with('error', $this->notPassedEntryMessage($visit));
         }
 
-        $visit->load(['devices', 'receptions.receivedBy']);
+        $visit->load(['devices', 'receptions.receivedBy', 'detail.recorder']);
 
-        return view('reception.show', compact('visit'));
+        $isDelivery = VisitPurpose::deliveryNames()->contains($visit->purpose);
+        $departments = Department::orderBy('name')->pluck('name');
+        $deliveryTo = self::DELIVERY_TO;
+
+        return view('reception.show', compact('visit', 'isDelivery', 'departments', 'deliveryTo'));
+    }
+
+    // Full details of the visit, captured at reception (the Gate only keeps a short note).
+    public function intake(Request $request, VisitorVisit $visit)
+    {
+        if ($visit->gate_checked_out_at) {
+            return redirect()->route('reception.index')->with('error', "{$visit->name} has already left the premises.");
+        }
+
+        if ($message = $this->wrongReception($visit)) {
+            return redirect()->route('reception.index')->with('error', $message);
+        }
+
+        if (! $this->passedEntry($visit)) {
+            return redirect()->route('reception.index')->with('error', $this->notPassedEntryMessage($visit));
+        }
+
+        $isDelivery = VisitPurpose::deliveryNames()->contains($visit->purpose);
+
+        if ($isDelivery) {
+            $data = $request->validate([
+                'delivery_to' => ['required', Rule::in(array_keys(self::DELIVERY_TO))],
+                'details' => 'required|string|max:500',
+                'delivery_company' => 'required|string|max:255',
+                'person_to_see' => 'nullable|required_if:delivery_to,individual|string|max:255',
+                'department' => ['nullable', 'required_if:delivery_to,individual', 'string', 'max:120', Rule::exists('departments', 'name')],
+            ], [
+                'delivery_to.required' => 'Choose whether the delivery is for an individual or for UNBS Stores.',
+                'details.required' => 'Enter what is being delivered.',
+                'delivery_company.required' => 'Enter the company making the delivery.',
+                'person_to_see.required_if' => 'Enter who the delivery is for.',
+                'department.required_if' => 'Choose the department the delivery is for.',
+            ]);
+
+            if ($data['delivery_to'] === 'stores') {
+                $data['person_to_see'] = 'UNBS Stores';
+                $data['department'] = 'UNBS Stores';
+            }
+        } else {
+            $data = $request->validate([
+                'details' => 'required|string|max:500',
+                'department' => ['nullable', 'string', 'max:120', Rule::exists('departments', 'name')],
+                'person_to_see' => 'nullable|string|max:255',
+            ], ['details.required' => 'Enter the details of the visit (for example: attending SACCO manager interviews).']);
+        }
+
+        DB::transaction(function () use ($request, $visit, $data, $isDelivery) {
+            $visit->detail()->updateOrCreate([], [
+                'details' => trim($data['details']),
+                'department' => filled($data['department'] ?? null) ? $data['department'] : null,
+                'person_to_see' => filled($data['person_to_see'] ?? null) ? trim($data['person_to_see']) : null,
+                'delivery_company' => $isDelivery ? trim($data['delivery_company']) : null,
+                'recorded_by' => $request->user()->id,
+            ]);
+
+            if ($isDelivery) {
+                $visit->update(['delivery_to' => $data['delivery_to']]);
+            }
+        });
+
+        return redirect()
+            ->route('reception.visits.show', $visit)
+            ->with('success', 'Visit details saved.');
     }
 
     // Records that this receptionist received the visitor at a destination.
@@ -156,6 +230,13 @@ class ReceptionController extends Controller
             return redirect()
                 ->route('reception.index')
                 ->with('error', $this->notPassedEntryMessage($visit));
+        }
+
+        // Full details come first: the receptionist records why the visitor is here before receiving them.
+        if (! $visit->detail()->exists()) {
+            return redirect()
+                ->route('reception.visits.show', $visit)
+                ->with('error', 'Record the visit details first, then receive the visitor.');
         }
 
         $validated = $request->validate([

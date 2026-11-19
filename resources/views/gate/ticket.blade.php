@@ -57,6 +57,18 @@
                     </tr>
                 </table>
 
+                @if ($visit->gate_note || $visit->delivery_to)
+                    <div class="border rounded p-3 mt-3 text-start">
+                        <div class="small text-uppercase text-muted mb-1">Gate note</div>
+                        @if ($visit->delivery_to)
+                            <div class="fw-semibold">Delivery to {{ $visit->delivery_to === 'stores' ? 'UNBS Stores' : 'an individual' }}</div>
+                        @endif
+                        @if ($visit->gate_note)
+                            <div>{{ $visit->gate_note }}</div>
+                        @endif
+                    </div>
+                @endif
+
                 @if ($visit->detail)
                     <div class="border rounded p-3 mt-3 text-start">
                         <div class="small text-uppercase text-muted mb-1">Visit details</div>

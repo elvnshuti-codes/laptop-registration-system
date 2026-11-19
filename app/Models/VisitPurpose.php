@@ -6,11 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class VisitPurpose extends Model
 {
-    protected $fillable = ['name', 'is_system', 'is_testing'];
+    protected $fillable = ['name', 'is_system', 'is_testing', 'is_security', 'is_delivery'];
 
     protected $casts = [
         'is_system' => 'boolean',
         'is_testing' => 'boolean',
+        'is_security' => 'boolean',
+        'is_delivery' => 'boolean',
     ];
 
     // Names for the dropdowns, alphabetical, with the built-in "Other" always last.
@@ -25,9 +27,15 @@ class VisitPurpose extends Model
         return static::where('is_testing', true)->pluck('name');
     }
 
-        // Purposes flagged as Security (uniformed officers on duty).
-        public static function securityNames()
-        {
-            return static::where('is_security', true)->pluck('name');
-        }
+    // Purposes flagged as Security (uniformed officers on duty).
+    public static function securityNames()
+    {
+        return static::where('is_security', true)->pluck('name');
+    }
+
+    // Purposes flagged as Delivery (goods brought to an individual or to UNBS Stores).
+    public static function deliveryNames()
+    {
+        return static::where('is_delivery', true)->pluck('name');
+    }
 }

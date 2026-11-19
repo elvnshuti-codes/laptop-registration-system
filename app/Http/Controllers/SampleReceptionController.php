@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\SampleReception;
+use App\Models\SampleType;
 use App\Models\VisitException;
 use App\Models\VisitorVisit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class SampleReceptionController extends Controller
 {
@@ -68,7 +71,82 @@ class SampleReceptionController extends Controller
 
         $visit->load(['samples', 'devices', 'sampleReception.servedBy']);
 
-        return view('sample-reception.show', compact('visit'));
+        $sampleTypes = SampleType::options();
+        $deliveredBy = GateController::DELIVERED_BY;
+
+        return view('sample-reception.show', compact('visit', 'sampleTypes', 'deliveredBy'));
+    }
+
+    // The sample details, captured at Sample Reception (the Gate only keeps a short note).
+    public function intake(Request $request, VisitorVisit $visit)
+    {
+        abort_unless($visit->for_sample_reception, 403, 'This visitor is not for Sample Reception.');
+
+        if ($visit->gate_checked_out_at) {
+            return back()->with('error', "{$visit->name} has already left the premises.");
+        }
+
+        if ($visit->sampleReception()->exists()) {
+            return back()->with('error', "{$visit->name} has already been served. The sample details can no longer be changed.");
+        }
+
+        // If the owner is delivering, their own mobile is the owner's phone: no need to type it twice.
+        if ($request->input('delivered_by_type') === 'Owner'
+            && blank($request->input('sample_owner_phone'))
+            && filled($visit->visitor_mobile_number)) {
+            $request->merge(['sample_owner_phone' => $visit->visitor_mobile_number]);
+        }
+
+        $validated = $request->validate([
+            'samples' => 'required|array|min:1|max:10',
+            'samples.*.type' => ['required', 'distinct', Rule::exists('sample_types', 'name')],
+            'samples.*.count' => 'required|integer|min:1|max:9999',
+            'sample_owner_name' => 'nullable|string|max:255',
+            'sample_owner_company' => 'required|string|max:255',
+            'sample_owner_tin' => 'nullable|string|max:30',
+            'sample_owner_phone' => 'nullable|required_without:sample_owner_email|string|max:20',
+            'sample_owner_email' => 'nullable|email|max:255',
+            'sample_prn' => 'nullable|string|max:50',
+            'delivered_by_type' => ['required', Rule::in(array_keys(GateController::DELIVERED_BY))],
+            'delivered_by_company' => 'nullable|required_if:delivered_by_type,Company representative,Delivery company|string|max:255',
+        ], [
+            'sample_owner_phone.required_without' => "Enter the owner's phone number or email (at least one is needed).",
+            'samples.required' => 'Add at least one sample type.',
+            'samples.*.type.required' => 'Choose a sample type for every row.',
+            'samples.*.type.distinct' => 'Each sample type can only be listed once.',
+            'samples.*.count.required' => 'Enter the number of samples for every row.',
+            'sample_owner_company.required' => "Enter the owner's company.",
+            'delivered_by_type.required' => 'Choose who is delivering the samples.',
+        ]);
+
+        $samples = $validated['samples'];
+        unset($validated['samples']);
+
+        if (! empty($validated['sample_prn'])) {
+            $validated['sample_prn'] = strtoupper(trim($validated['sample_prn']));
+        }
+
+        // The person at the gate is the owner: no need to type the name twice.
+        if ($validated['delivered_by_type'] === 'Owner') {
+            $validated['sample_owner_name'] = $validated['sample_owner_name'] ?? $visit->name;
+            $validated['delivered_by_company'] = null;
+        }
+        if ($validated['delivered_by_type'] === 'Delivery person') {
+            $validated['delivered_by_company'] = null;
+        }
+
+        DB::transaction(function () use ($visit, $validated, $samples) {
+            $visit->update($validated);
+
+            $visit->samples()->delete();
+            foreach ($samples as $row) {
+                $visit->samples()->create(['sample_type' => $row['type'], 'sample_count' => $row['count']]);
+            }
+        });
+
+        return redirect()
+            ->route('sample.visits.show', $visit)
+            ->with('success', 'Sample details saved.');
     }
 
     // Marks the visitor as served, with the reference number and an optional note.
@@ -82,6 +160,11 @@ class SampleReceptionController extends Controller
 
         if ($visit->sampleReception()->exists()) {
             return back()->with('error', "{$visit->name} has already been served.");
+        }
+
+        // The sample details are recorded here before the visitor is served.
+        if (! $visit->samples()->exists() || blank($visit->sample_owner_company)) {
+            return back()->with('error', 'Record the sample details first, then mark the visitor as served.');
         }
 
         $request->merge(['reference_number' => strtoupper(trim((string) $request->input('reference_number')))]);

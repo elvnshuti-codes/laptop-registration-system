@@ -19,6 +19,8 @@ class VisitorVisit extends Model
         'visitor_mobile_number',
         'visitor_card_number',
         'for_sample_reception',
+        'gate_note',
+        'delivery_to',
         'sample_owner_name',
         'sample_owner_company',
         'sample_owner_phone',

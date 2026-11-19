@@ -86,129 +86,6 @@
                         </div>
                     </div>
 
-                    {{-- Sample details (only for purposes that go to Sample Reception) --}}
-                    <div id="sample_block" class="border rounded p-3 mb-3 bg-light" style="display:none;">
-                        <h6 class="fw-bold text-primary mb-3">Sample details</h6>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Samples</label>
-                            <div id="sample_rows">
-                                @foreach (old('samples', [['type' => '', 'count' => '']]) as $i => $row)
-                                    <div class="row g-2 mb-2 sample-row">
-                                        <div class="col-7">
-                                            <select name="samples[{{ $i }}][type]"
-                                                    class="form-select @error("samples.$i.type") is-invalid @enderror">
-                                                <option value="">Sample type...</option>
-                                                @foreach ($sampleTypes as $type)
-                                                    <option value="{{ $type }}" @selected(($row['type']?? '') === $type)>{{ $type }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="col-3">
-                                            <input type="number" name="samples[{{ $i }}][count]" min="1" max="9999"
-                                                   class="form-control @error("samples.$i.count") is-invalid @enderror"
-                                                   value="{{ $row['count'] ?? '' }}" placeholder="No.">
-                                        </div>
-                                        <div class="col-2 d-grid">
-                                            <button type="button" class="btn btn-outline-danger remove-sample" title="Remove">&times;</button>
-                                        </div>
-                                    </div>
-                                @endforeach
-                            </div>
-                            <button type="button" id="add_sample" class="btn btn-sm btn-outline-primary">+ Add another sample type</button>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="delivered_by_type" class="form-label fw-semibold">Who is delivering the samples?</label>
-                            <select id="delivered_by_type" name="delivered_by_type"
-                                    class="form-select @error('delivered_by_type') is-invalid @enderror">
-                                <option value="">Select...</option>
-                                @foreach ($deliveredBy as $value => $label)
-                                    <option value="{{ $value }}" @selected(old('delivered_by_type') ===$value)>{{ $label }}</option>
-                                @endforeach
-                            </select>
-                            @error('delivered_by_type') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            <div class="form-text">The person at the gate is the one delivering. Their name and mobile are captured above.</div>
-                        </div>
-
-                        <div class="mb-3" id="delivered_company_wrap">
-                            <label for="delivered_by_company" class="form-label fw-semibold">Company / Courier Name</label>
-                            <input type="text" id="delivered_by_company" name="delivered_by_company"
-                                   class="form-control @error('delivered_by_company') is-invalid @enderror"
-                                   value="{{ old('delivered_by_company') }}" placeholder="Company or courier the deliverer works for">
-                            @error('delivered_by_company') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
-
-                        <hr>
-                        <p class="fw-semibold mb-2">Owner of the samples</p>
-
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-7">
-                                <label for="sample_owner_company" class="form-label fw-semibold">Owner's Company</label>
-                                <input type="text" id="sample_owner_company" name="sample_owner_company"
-                                       class="form-control @error('sample_owner_company') is-invalid @enderror"
-                                       value="{{ old('sample_owner_company') }}" placeholder="Company the samples belong to">
-                                @error('sample_owner_company') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            </div>
-                            <div class="col-md-5">
-                                <label for="sample_owner_tin" class="form-label fw-semibold">
-                                    Company TIN <span class="text-muted fw-normal">(optional)</span>
-                                </label>
-                                <input type="text" id="sample_owner_tin" name="sample_owner_tin"
-                                       class="form-control text-uppercase @error('sample_owner_tin') is-invalid @enderror"
-                                       value="{{ old('sample_owner_tin') }}" maxlength="30">
-                                @error('sample_owner_tin') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="sample_owner_name" class="form-label fw-semibold">
-                                Owner's Name <span class="text-muted fw-normal">(optional)</span>
-                            </label>
-                            <input type="text" id="sample_owner_name" name="sample_owner_name"
-                                   class="form-control @error('sample_owner_name') is-invalid @enderror"
-                                   value="{{ old('sample_owner_name') }}" placeholder="Full name">
-                            @error('sample_owner_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            <div class="form-text">The delivery person may not know it. If the owner isthe visitor, leave blank.</div>
-                        </div>
-
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <label for="sample_owner_phone" class="form-label fw-semibold">Owner's Phone</label>
-                                <input type="tel" id="sample_owner_phone" name="sample_owner_phone"
-                                       class="form-control @error('sample_owner_phone') is-invalid @enderror"
-                                       value="{{ old('sample_owner_phone') }}" placeholder="07XX XXX XXX">
-                                @error('sample_owner_phone') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            </div>
-                            <div class="col-md-6">
-                                <label for="sample_owner_email" class="form-label fw-semibold">Owner's Email</label>
-                                <input type="email" id="sample_owner_email" name="sample_owner_email"
-                                       class="form-control @error('sample_owner_email') is-invalid @enderror"
-                                       value="{{ old('sample_owner_email') }}" placeholder="name@company.com">
-                                @error('sample_owner_email') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            </div>
-                            <div class="col-12">
-                                <div class="form-text mt-0">Enter at least one: phone or email.</div>
-                            </div>
-                        </div>
-
-                        <hr>
-                        <div class="mb-0">
-                            <label for="sample_prn" class="form-label fw-semibold">
-                                Payment Reference Number (PRN) <span class="text-muted fw-normal">(optional)</span>
-                            </label>
-                            <input type="text" id="sample_prn" name="sample_prn"
-                                   class="form-control text-uppercase @error('sample_prn') is-invalid @enderror"
-                                   value="{{ old('sample_prn') }}" maxlength="50" placeholder="PRN fromthe proof of payment">
-                            @error('sample_prn') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            <div class="form-text">
-                                The PRN is generated when payment is made and is the proof of payment. It links to the
-                                owner of the samples, and the company TIN links to the company that owns the samples
-                                and paid for them.
-                            </div>
-                        </div>
-                    </div>  
-
                     {{-- ID document --}}
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
@@ -261,41 +138,29 @@
                         </div>
                     </div>
 
-                    {{-- Visit details: every purpose except Testing and Security --}}
-                    <div id="detail_block" class="border rounded p-3 mb-3" style="display: none;">
-                        <h6 class="fw-bold text-primary mb-3">Visit details</h6>
-
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <label for="detail_department" class="form-label fw-semibold">
-                                    Department to visit <span class="text-muted fw-normal">(optional)</span>
-                                </label>
-                                <select id="detail_department" name="detail_department"
-                                        class="form-select @error('detail_department') is-invalid @enderror">
-                                    <option value="">Choose...</option>
-                                    @foreach ($departments as $department)
-                                        <option value="{{ $department }}" @selected(old('detail_department') === $department)>{{ $department }}</option>
-                                    @endforeach
-                                </select>
-                                @error('detail_department') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            </div>
-                            <div class="col-md-6">
-                                <label for="detail_person" class="form-label fw-semibold">
-                                    Person to see <span class="text-muted fw-normal">(optional)</span>
-                                </label>
-                                <input type="text" id="detail_person" name="detail_person" maxlength="255"
-                                       class="form-control @error('detail_person') is-invalid @enderror"
-                                       value="{{ old('detail_person') }}" placeholder="Name of the staff member">
-                                @error('detail_person') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            </div>
+                    {{-- Short note: every purpose except Security. Full details are captured at the reception. --}}
+                    <div id="note_block" class="mb-3" style="display: none;">
+                        <div id="delivery_wrap" class="mb-3" style="display: none;">
+                            <label for="delivery_to" class="form-label fw-semibold">Delivering to</label>
+                            <select id="delivery_to" name="delivery_to"
+                                    class="form-select @error('delivery_to') is-invalid @enderror">
+                                <option value="">Choose...</option>
+                                @foreach ($deliveryTo as $key => $text)
+                                    <option value="{{ $key }}" @selected(old('delivery_to') === $key)>{{ $text }}</option>
+                                @endforeach
+                            </select>
+                            @error('delivery_to') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
 
-                        <div>
-                            <label for="detail_text" class="form-label fw-semibold">Details of the visit</label>
-                            <textarea id="detail_text" name="detail_text" rows="2" maxlength="500"
-                                      class="form-control @error('detail_text') is-invalid @enderror"
-                                      placeholder="Specify, e.g. Attending SACCO manager interviews">{{ old('detail_text') }}</textarea>
-                            @error('detail_text') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <label for="gate_note" class="form-label fw-semibold">
+                            Note <span class="text-muted fw-normal">(optional)</span>
+                        </label>
+                        <textarea id="gate_note" name="gate_note" rows="2" maxlength="500"
+                                  class="form-control @error('gate_note') is-invalid @enderror">{{ old('gate_note') }}</textarea>
+                        @error('gate_note') <div class="invalid-feedback">{{ $message }}</div> @enderror
+
+                        <div class="alert alert-info py-2 small mt-2 mb-0">
+                            Tell the visitor to go to Reception for clearance. The full details are recorded there.
                         </div>
                     </div>
 
@@ -532,66 +397,44 @@
     idType.addEventListener('change', updateIdLabel);
     updateIdLabel();
 
-    // Sample details appear only for purposes that go to Sample Reception.
-    const testingPurposes = @json($testingPurposes);
-    const purposeSelect = document.getElementById('purpose');
-    const sampleBlock = document.getElementById('sample_block');
-    function updateSampleBlock() {
-        const isTesting = testingPurposes.includes(purposeSelect.value);
-        sampleBlock.style.display = isTesting ? '' : 'none';
-        document.getElementById('mobile_optional').style.display = isTesting ? 'none' : '';
-    }
-    purposeSelect.addEventListener('change', updateSampleBlock);
-    updateSampleBlock();
+    // Mobile number: compulsory for samples and deliveries, so the person can always be reached.
+    // The short note and the "delivering to" choice show for every purpose except Security.
+    (function () {
+        const testing = @json($testingPurposes);
+        const delivery = @json($deliveryPurposes);
+        const security = @json($securityPurposes);
+        const purpose = document.getElementById('purpose');
+        const noteBlock = document.getElementById('note_block');
+        const deliveryWrap = document.getElementById('delivery_wrap');
+        const deliveryTo = document.getElementById('delivery_to');
+        const note = document.getElementById('gate_note');
+        const mobile = document.getElementById('visitor_mobile_number');
+        const mobileHint = document.getElementById('mobile_optional');
 
-    // The company/courier box only matters for company or courier deliveries.
-    const deliveredType = document.getElementById('delivered_by_type');
-    const companyWrap = document.getElementById('delivered_company_wrap');
-    const companyInput = document.getElementById('delivered_by_company');
-    function updateDeliveredCompany() {
-        const needs = ['Company representative', 'Delivery company'].includes(deliveredType.value);
-        companyWrap.style.display = needs ? '' : 'none';
-        if (!needs) companyInput.value = '';
-    }
-    deliveredType.addEventListener('change', updateDeliveredCompany);
-    updateDeliveredCompany();
+        function update() {
+            const p = purpose.value;
+            const isTesting = testing.includes(p);
+            const isDelivery = delivery.includes(p);
+            const isSecurity = security.includes(p);
 
-        // Several sample types: add and remove rows.
-        const sampleRows = document.getElementById('sample_rows');
-    function reindexSamples() {
-        sampleRows.querySelectorAll('.sample-row').forEach((row, i) => {
-            row.querySelector('select').name = `samples[${i}][type]`;
-            row.querySelector('input').name = `samples[${i}][count]`;
-        });
-    }
-    document.getElementById('add_sample').addEventListener('click', () => {
-        const clone = sampleRows.querySelector('.sample-row').cloneNode(true);
-        clone.querySelector('select').value = '';
-        clone.querySelector('input').value = '';
-        clone.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-        sampleRows.appendChild(clone);
-        reindexSamples();
-    });
-    sampleRows.addEventListener('click', (e) => {
-        const row = e.target.closest('.remove-sample') && e.target.closest('.sample-row');
-        if (row && sampleRows.querySelectorAll('.sample-row').length > 1) {
-            row.remove();
-            reindexSamples();
+            noteBlock.style.display = (p && !isSecurity) ? '' : 'none';
+            if (isSecurity) note.value = '';
+
+            deliveryWrap.style.display = isDelivery ? '' : 'none';
+            deliveryTo.required = isDelivery;
+            if (!isDelivery) deliveryTo.value = '';
+
+            note.placeholder = isTesting ? 'e.g. Which sample, whose sample'
+                : (isDelivery ? 'e.g. What is being delivered'
+                : 'Anything useful about the visit');
+
+            mobile.required = isTesting || isDelivery;
+            mobileHint.style.display = (isTesting || isDelivery) ? 'none' : '';
         }
-    });
 
-    // If the owner is delivering, their phone is the visitor's mobile: fill it automatically.
-    const mobileInput = document.getElementById('visitor_mobile_number');
-    const ownerPhone = document.getElementById('sample_owner_phone');
-    let lastMirrored = '';
-    function mirrorOwnerPhone() {
-        if (deliveredType.value === 'Owner' && (ownerPhone.value === '' || ownerPhone.value === lastMirrored)) {
-            ownerPhone.value = mobileInput.value;
-            lastMirrored = mobileInput.value;
-        }
-    }
-    mobileInput.addEventListener('input', mirrorOwnerPhone);
-    deliveredType.addEventListener('change', mirrorOwnerPhone);
+        purpose.addEventListener('change', update);
+        update();
+    })();
 
     // Arrival: the plate box depends on how the visitor arrived.
     (function () {
@@ -654,21 +497,6 @@
                 row.querySelectorAll('input').forEach(function (input) { input.value = ''; });
             }
         });
-    })();
-
-    // Every purpose except Testing and Security gets the "Visit details" box.
-    (function () {
-        const testing = @json($testingPurposes);
-        const security = @json($securityPurposes);
-        const purpose = document.getElementById('purpose');
-        const block = document.getElementById('detail_block');
-
-        function update() {
-            const p = purpose.value;
-            block.style.display = (p && !testing.includes(p) && !security.includes(p)) ? '' : 'none';
-        }
-        purpose.addEventListener('change', update);
-        update();
     })();
 
     // Security purpose: show the officer section, rank suggestions and arms rows.

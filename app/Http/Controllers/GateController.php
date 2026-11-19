@@ -74,6 +74,8 @@ class GateController extends Controller
 
         $purposes = VisitPurpose::options();
         $testingPurposes = VisitPurpose::testingNames();
+        $deliveryPurposes = VisitPurpose::deliveryNames();
+        $deliveryTo = ReceptionController::DELIVERY_TO;
         $sampleTypes = SampleType::options();
         $deliveredBy = self::DELIVERED_BY;
         $arrivalModes = VisitArrival::MODES;
@@ -84,7 +86,7 @@ class GateController extends Controller
         $armTypes = ['Firearms' => VisitArm::FIREARMS, 'Other weapons' => VisitArm::OTHERS];
 
         return view('gate.create', compact(
-            'booking', 'purposes', 'testingPurposes', 'sampleTypes', 'deliveredBy', 'arrivalModes',
+            'booking', 'purposes', 'testingPurposes', 'deliveryPurposes', 'deliveryTo', 'sampleTypes', 'deliveredBy', 'arrivalModes',
             'securityPurposes', 'forces', 'ranks', 'armTypes', 'departments'
         ));
     }
@@ -114,16 +116,8 @@ class GateController extends Controller
         // Is this a uniformed officer on security duty? Decided by the purpose's Security flag.
         $isSecurity = VisitPurpose::securityNames()->contains($request->input('purpose'));
 
-        // Every other purpose (interview, meeting, delivery...) gets a details box.
-        $needsDetails = ! $isTesting && ! $isSecurity;
-
-        // If the owner is delivering, their own mobile is the owner's phone: no need to type it twice.
-        if ($isTesting
-            && $request->input('delivered_by_type') === 'Owner'
-            && blank($request->input('sample_owner_phone'))
-            && filled($request->input('visitor_mobile_number'))) {
-            $request->merge(['sample_owner_phone' => $request->input('visitor_mobile_number')]);
-        }
+        // Is this a delivery? Decided by the purpose's Delivery flag.
+        $isDelivery = VisitPurpose::deliveryNames()->contains($request->input('purpose'));
 
         $rules = [
             'name' => 'required|string|max:255',
@@ -134,6 +128,7 @@ class GateController extends Controller
             'id_document_number' => 'required|string|max:50',
             'visitor_card_number' => 'required|string|max:255',
             'visitor_mobile_number' => 'nullable|string|max:20',
+            'gate_note' => 'nullable|string|max:500',
             'booking_id' => 'nullable|exists:visitor_bookings,id',
         ];
 
@@ -154,12 +149,9 @@ class GateController extends Controller
             ];
         }
 
-        if ($needsDetails) {
-            $rules += [
-                'detail_text' => 'required|string|max:500',
-                'detail_department' => ['nullable', 'string', 'max:120', Rule::exists('departments', 'name')],
-                'detail_person' => 'nullable|string|max:255',
-            ];
+        // A delivery must say who it is for: an individual or UNBS Stores. The rest is captured at Reception.
+        if ($isDelivery) {
+            $rules['delivery_to'] = ['required', Rule::in(array_keys(ReceptionController::DELIVERY_TO))];
         }
 
         // Security visitors: force, rank, the VIP they protect, and the arms they leave.
@@ -194,40 +186,20 @@ class GateController extends Controller
             }
         }
 
-        // Sample details are only required for Testing visitors.
-        if ($isTesting) {
-            $rules += [
-                'samples' => 'required|array|min:1|max:10',
-                'samples.*.type' => ['required', 'distinct', Rule::exists('sample_types', 'name')],
-                'samples.*.count' => 'required|integer|min:1|max:9999',
-                'sample_owner_name' => 'nullable|string|max:255',
-                'sample_owner_company' => 'required|string|max:255',
-                'sample_owner_tin' => 'nullable|string|max:30',
-                'sample_owner_phone' => 'nullable|required_without:sample_owner_email|string|max:20',
-                'sample_owner_email' => 'nullable|email|max:255',
-                'sample_prn' => 'nullable|string|max:50',
-                'delivered_by_type' => ['required', Rule::in(array_keys(self::DELIVERED_BY))],
-                'delivered_by_company' => 'nullable|required_if:delivered_by_type,Company representative,Delivery company|string|max:255',
-            ];
-
-            // The person delivering must always be reachable.
+        // The person delivering samples or goods must always be reachable.
+        if ($isTesting || $isDelivery) {
             $rules['visitor_mobile_number'] = 'required|string|max:20';
         }
 
         $validated = $request->validate($rules, [
-            'sample_owner_phone.required_without' => "Enter the owner's phone number or email (at least one is needed).",
-            'samples.required' => 'Add at least one sample type.',
-            'samples.*.type.required' => 'Choose a sample type for every row.',
-            'samples.*.type.distinct' => 'Each sample type can only be listed once.',
-            'samples.*.count.required' => 'Enter the number of samples for every row.',
-            'visitor_mobile_number.required' => 'Enter the mobile number of the person delivering the samples.',
+            'visitor_mobile_number.required' => 'Enter the mobile number of the person delivering.',
+            'delivery_to.required' => 'Choose whether the delivery is for an individual or for UNBS Stores.',
             'arrival_mode.required' => 'Choose how the visitor arrived.',
             'number_plate.required_if' => 'Enter the number plate.',
             'items.required' => 'Add at least one item left at the gate, or switch that option off.',
             'items.*.name.required' => 'Enter the item name for every row.',
             'items.*.colour.required' => 'Enter the colour of every item.',
             'items.*.quantity.required' => 'Enter how many of every item.',
-            'detail_text.required' => 'Enter the details of the visit (for example: attending SACCO manager interviews).',
             'security_force.required' => 'Choose whether the officer belongs to the UPDF or the UPF.',
             'officer_rank.required' => "Enter the officer's rank.",
             'vip_name.required' => 'Enter the name of the VIP the officer is protecting.',
@@ -239,10 +211,6 @@ class GateController extends Controller
             'arms.*.serial.distinct' => 'The same serial number is listed twice.',
             'arms.*.count.required' => 'Enter the bullets (firearms) or the quantity (other items) for every row.',
         ]);
-
-        // The sample rows are saved in their own table, not on the visit.
-        $samples = $validated['samples'] ?? [];
-        unset($validated['samples']);
 
         // Arrival and items are saved in their own tables, not on the visit.
         $arrival = [
@@ -266,14 +234,6 @@ class GateController extends Controller
             ];
             $arms = $request->boolean('has_arms') ? ($validated['arms'] ?? []) : [];
         }
-        // What the visitor came for (non-Testing, non-Security purposes).
-        $detail = $needsDetails ? [
-            'details' => trim($validated['detail_text']),
-            'department' => filled($validated['detail_department'] ?? null) ? $validated['detail_department'] : null,
-            'person' => filled($validated['detail_person'] ?? null) ? trim($validated['detail_person']) : null,
-        ] : null;
-        unset($validated['detail_text'], $validated['detail_department'], $validated['detail_person']);
-
         unset(
             $validated['security_force'], $validated['officer_rank'], $validated['vip_name'], $validated['vip_title'],
             $validated['locker_number'], $validated['has_arms'], $validated['arms']
@@ -282,23 +242,7 @@ class GateController extends Controller
         $validated['id_document_number'] = strtoupper(trim($validated['id_document_number']));
         $validated['for_sample_reception'] = $isTesting;
 
-        if ($isTesting) {
-            if (! empty($validated['sample_prn'])) {
-                $validated['sample_prn'] = strtoupper(trim($validated['sample_prn']));
-            }
-
-            // The person at the gate is the owner: no need to type the name twice.
-            if ($validated['delivered_by_type'] === 'Owner') {
-                $validated['sample_owner_name'] = $validated['sample_owner_name'] ?? $validated['name'];
-                $validated['delivered_by_company'] = null;
-            }
-            // A delivery person on their own has no company to record.
-            if ($validated['delivered_by_type'] === 'Delivery person') {
-                $validated['delivered_by_company'] = null;
-            }
-        }
-
-        $visit = DB::transaction(function () use ($validated, $samples, $arrival, $leftItems, $officerId, $security, $arms, $detail) {
+        $visit = DB::transaction(function () use ($validated, $arrival, $leftItems, $officerId, $security, $arms) {
             // If this visitor came with a booking, lock it and re-check it,
             // so one booking can never be used twice.
             $booking = null;
@@ -341,13 +285,6 @@ class GateController extends Controller
                 'gate_checked_in_at' => now(),
             ]);
 
-            foreach ($samples as $row) {
-                $visit->samples()->create([
-                    'sample_type' => $row['type'],
-                    'sample_count' => $row['count'],
-                ]);
-            }
-
             $visit->arrival()->create([
                 'mode' => $arrival['mode'],
                 'number_plate' => filled($arrival['plate']) ? strtoupper(preg_replace('/\s+/', ' ', trim($arrival['plate']))) : null,
@@ -360,15 +297,6 @@ class GateController extends Controller
                     'quantity' => (int) $row['quantity'],
                     'notes' => filled($row['notes'] ?? null) ? trim($row['notes']) : null,
                     'handled_by' => $officerId,
-                ]);
-            }
-
-            if ($detail) {
-                $visit->detail()->create([
-                    'details' => $detail['details'],
-                    'department' => $detail['department'],
-                    'person_to_see' => $detail['person'],
-                    'recorded_by' => $officerId,
                 ]);
             }
 

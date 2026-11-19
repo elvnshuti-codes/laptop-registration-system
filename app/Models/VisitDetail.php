@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class VisitDetail extends Model
 {
-    protected $fillable = ['visitor_visit_id', 'department', 'person_to_see', 'details', 'recorded_by'];
+    protected $fillable = [
+        'visitor_visit_id', 'department', 'person_to_see', 'details', 'delivery_company', 'recorded_by',
+    ];
 
     public function visit(): BelongsTo
     {

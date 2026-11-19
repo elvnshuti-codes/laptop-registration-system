@@ -94,6 +94,7 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage visitor r
     Route::get('/reception/lookup', [ReceptionController::class, 'lookup'])->name('reception.lookup');
     Route::get('/reception/visits/{visit}', [ReceptionController::class, 'show'])->name('reception.visits.show');
     Route::post('/reception/visits/{visit}', [ReceptionController::class, 'store'])->name('reception.visits.store');
+    Route::post('/reception/visits/{visit}/intake', [ReceptionController::class, 'intake'])->name('reception.visits.intake');
     Route::post('/reception/records/{reception}/served', [ReceptionController::class, 'markServed'])->name('reception.served');
 
     // NEW: acknowledge a "left without being served" record
@@ -113,6 +114,7 @@ Route::middleware(['auth', 'force.password.change', 'permission:manage sample re
     Route::post('/sample-reception/lookup', [SampleReceptionController::class, 'lookup'])->name('sample.lookup');
     Route::get('/sample-reception/visits/{visit}', [SampleReceptionController::class, 'show'])->name('sample.visits.show');
     Route::post('/sample-reception/visits/{visit}/served', [SampleReceptionController::class, 'serve'])->name('sample.visits.serve');
+    Route::post('/sample-reception/visits/{visit}/intake', [SampleReceptionController::class, 'intake'])->name('sample.visits.intake');
 
     // NEW: acknowledge a "left without being served" record
     Route::post('/sample-reception/exceptions/{exception}/acknowledge', [SampleReceptionController::class, 'acknowledge'])->name('sample.exceptions.acknowledge');

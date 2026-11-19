@@ -19,19 +19,35 @@
                     </div>
                     <div class="card-body p-4">
 
+                        @if ($visit->gate_note)
+                            <div class="alert alert-secondary py-2 small">
+                                <strong>Note from the Gate:</strong> {{ $visit->gate_note }}
+                            </div>
+                        @endif
+
+                        @php $hasSamples = $visit->samples->isNotEmpty(); @endphp
+
+                        @if (! $hasSamples)
+                            <div class="alert alert-warning">
+                                No sample details yet. Record them below before marking the visitor as served.
+                            </div>
+                        @endif
+
                         <h6 class="fw-bold text-primary">Samples</h6>
                         <table class="table table-sm mb-4">
-                            @foreach ($visit->samples as $sample)
+                            @forelse ($visit->samples as $sample)
                                 <tr>
                                     <td>{{ $sample->sample_type }}</td>
                                     <td class="text-end fw-semibold">{{ $sample->sample_count }}</td>
                                 </tr>
-                            @endforeach
+                            @empty
+                                <tr><td class="text-muted">&mdash;</td></tr>
+                            @endforelse
                         </table>
 
                         <h6 class="fw-bold text-primary">Owner</h6>
                         <table class="table table-sm mb-4">
-                            <tr><th class="w-50 fw-normal text-muted">Company</th><td>{{ $visit->sample_owner_company }}</td></tr>
+                            <tr><th class="w-50 fw-normal text-muted">Company</th><td>{{ $visit->sample_owner_company ?? '—' }}</td></tr>
                             <tr><th class="fw-normal text-muted">Company TIN</th><td>{{ $visit->sample_owner_tin ?? '—' }}</td></tr>
                             <tr><th class="fw-normal text-muted">Name</th><td>{{ $visit->sample_owner_name ?? '—' }}</td></tr>
                             <tr><th class="fw-normal text-muted">Phone</th><td>{{ $visit->sample_owner_phone ?? '—' }}</td></tr>
@@ -43,7 +59,7 @@
                         <table class="table table-sm mb-4">
                             <tr>
                                 <th class="w-50 fw-normal text-muted">Type</th>
-                                <td>{{ \App\Http\Controllers\GateController::DELIVERED_BY[$visit->delivered_by_type] ?? $visit->delivered_by_type }}</td>
+                                <td>{{ $deliveredBy[$visit->delivered_by_type] ?? ($visit->delivered_by_type ?? '—') }}</td>
                             </tr>
                             <tr><th class="fw-normal text-muted">Company / courier</th><td>{{ $visit->delivered_by_company ?? '—' }}</td></tr>
                             <tr><th class="fw-normal text-muted">Visitor card</th><td>{{ $visit->visitor_card_number }}</td></tr>
@@ -53,6 +69,10 @@
                                 <td>{{ \Carbon\Carbon::parse($visit->gate_checked_in_at)->format('d M Y, H:i') }}</td>
                             </tr>
                         </table>
+
+                        @if (! $visit->sampleReception)
+                            @include('sample-reception._intake-form')
+                        @endif
 
                         <h6 class="fw-bold text-primary">Devices</h6>
                         @forelse ($visit->devices as $device)
@@ -110,7 +130,7 @@
                                     </label>
                                     <textarea id="note" name="note" rows="3" maxlength="500"
                                               class="form-control @error('note') is-invalid @enderror">{{ old('note') }}</textarea>
-                                    @error('note') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    @error('note') <div class="invalid-feedback">{{ $message}}</div> @enderror
                                 </div>
 
                                 <div class="d-grid">

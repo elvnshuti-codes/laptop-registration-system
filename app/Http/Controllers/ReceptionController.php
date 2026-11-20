@@ -10,6 +10,7 @@ use App\Models\VisitPurpose;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class ReceptionController extends Controller
@@ -239,15 +240,21 @@ class ReceptionController extends Controller
                 ->with('error', 'Record the visit details first, then receive the visitor.');
         }
 
+        // The details recorded above are not asked again: the reception record is built from them.
+        // Only a visitor sent on to a further destination needs one typed.
         $validated = $request->validate([
-            'destination' => 'required|string|max:255',
-            'meeting_with' => 'nullable|string|max:255',
-            'purpose_confirmed' => 'required|string|max:255',
+            'destination' => 'nullable|string|max:255',
         ]);
 
+        $detail = $visit->detail;
+
         VisitorReception::create([
-            ...$validated,
             'visitor_visit_id' => $visit->id,
+            'destination' => filled($validated['destination'] ?? null)
+                ? trim($validated['destination'])
+                : ($detail->department ?: ($detail->person_to_see ?: 'Standard House')),
+            'meeting_with' => $detail->person_to_see,
+            'purpose_confirmed' => Str::limit($detail->details ?: $visit->purpose, 250, ''),
             'served' => false,
             'received_by' => $request->user()->id,
         ]);

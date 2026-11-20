@@ -200,41 +200,31 @@
             </div>
         @endif
 
-        {{-- Receive form: open when the visitor has not been received, folded away afterwards --}}
+        {{-- Receive: one button, built from the details above --}}
         @if (! $visit->detail)
             <div class="alert alert-warning">Record the visit details above first, then receive the visitor.</div>
+        @elseif (! $received)
+            <form method="POST" action="{{ route('reception.visits.store', $visit) }}">
+                @csrf
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg">Receive visitor</button>
+                </div>
+                <div class="form-text text-center mt-2">
+                    Goes to {{ $visit->detail->department ?: ($visit->detail->person_to_see ?: 'Standard House') }}
+                </div>
+            </form>
         @else
-        <details class="card shadow-sm border-0" @if (! $received || $errors->any()) open @endif>
-            <summary class="card-header bg-primary text-white py-3 fw-semibold" style="cursor: pointer;">
-                {{ $received ? 'Receive at another destination' : 'Receive visitor' }}
-            </summary>
-            <div class="card-body">
-                <form method="POST" action="{{ route('reception.visits.store', $visit) }}">
-                    @csrf
-
-                    <div class="mb-3">
-                        <label for="destination" class="form-label">Destination (department / office)</label>
-                        <input type="text" id="destination" name="destination" value="{{ old('destination') }}"
-                               class="form-control" required @if (! $received) autofocus @endif>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="meeting_with" class="form-label">Meeting with <span class="text-muted">(optional)</span></label>
-                        <input type="text" id="meeting_with" name="meeting_with" value="{{ old('meeting_with') }}"
-                               class="form-control">
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="purpose_confirmed" class="form-label">Purpose (confirmedwith the visitor)</label>
-                        <input type="text" id="purpose_confirmed" name="purpose_confirmed"
-                               value="{{ old('purpose_confirmed', $defaultPurpose) }}"
-                               class="form-control" required>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary">Save</button>
-                </form>
-            </div>
-        </details>
+            <details class="card shadow-sm border-0" @if ($errors->has('destination')) open @endif>
+                <summary class="card-header bg-white py-3 fw-semibold" style="cursor: pointer;">Also received at another destination</summary>
+                <div class="card-body">
+                    <form method="POST" action="{{ route('reception.visits.store', $visit) }}" class="d-flex gap-2">
+                        @csrf
+                        <input type="text" name="destination" maxlength="255" class="form-control"
+                               placeholder="Department / office" required>
+                        <button type="submit" class="btn btn-primary text-nowrap">Receive</button>
+                    </form>
+                </div>
+            </details>
         @endif
     </div>
 

@@ -3,6 +3,7 @@
 @section('title', 'Sample Reception · ' . $visit->name)
 
 @section('content')
+@php $hasSamples = $visit->samples->isNotEmpty() && filled($visit->sample_owner_company); @endphp
 <div class="row justify-content-center">
     <div class="col-xl-10">
 
@@ -25,54 +26,15 @@
                             </div>
                         @endif
 
-                        @php $hasSamples = $visit->samples->isNotEmpty(); @endphp
-
-                        @if (! $hasSamples)
-                            <div class="alert alert-warning">
-                                No sample details yet. Record them below before marking the visitor as served.
-                            </div>
-                        @endif
-
-                        <h6 class="fw-bold text-primary">Samples</h6>
+                        <h6 class="fw-bold text-primary">Captured at the Gate</h6>
                         <table class="table table-sm mb-4">
-                            @forelse ($visit->samples as $sample)
-                                <tr>
-                                    <td>{{ $sample->sample_type }}</td>
-                                    <td class="text-end fw-semibold">{{ $sample->sample_count }}</td>
-                                </tr>
-                            @empty
-                                <tr><td class="text-muted">&mdash;</td></tr>
-                            @endforelse
-                        </table>
-
-                        <h6 class="fw-bold text-primary">Owner</h6>
-                        <table class="table table-sm mb-4">
-                            <tr><th class="w-50 fw-normal text-muted">Company</th><td>{{ $visit->sample_owner_company ?? '—' }}</td></tr>
-                            <tr><th class="fw-normal text-muted">Company TIN</th><td>{{ $visit->sample_owner_tin ?? '—' }}</td></tr>
-                            <tr><th class="fw-normal text-muted">Name</th><td>{{ $visit->sample_owner_name ?? '—' }}</td></tr>
-                            <tr><th class="fw-normal text-muted">Phone</th><td>{{ $visit->sample_owner_phone ?? '—' }}</td></tr>
-                            <tr><th class="fw-normal text-muted">Email</th><td>{{ $visit->sample_owner_email ?? '—' }}</td></tr>
-                            <tr><th class="fw-normal text-muted">Payment Reference (PRN)</th><td>{{ $visit->sample_prn ?? '—' }}</td></tr>
-                        </table>
-
-                        <h6 class="fw-bold text-primary">Delivered by</h6>
-                        <table class="table table-sm mb-4">
-                            <tr>
-                                <th class="w-50 fw-normal text-muted">Type</th>
-                                <td>{{ $deliveredBy[$visit->delivered_by_type] ?? ($visit->delivered_by_type ?? '—') }}</td>
-                            </tr>
-                            <tr><th class="fw-normal text-muted">Company / courier</th><td>{{ $visit->delivered_by_company ?? '—' }}</td></tr>
-                            <tr><th class="fw-normal text-muted">Visitor card</th><td>{{ $visit->visitor_card_number }}</td></tr>
+                            <tr><th class="w-50 fw-normal text-muted">Visitor card</th><td>{{ $visit->visitor_card_number }}</td></tr>
                             <tr><th class="fw-normal text-muted">Mobile</th><td>{{ $visit->visitor_mobile_number ?? '—' }}</td></tr>
                             <tr>
                                 <th class="fw-normal text-muted">Arrived</th>
                                 <td>{{ \Carbon\Carbon::parse($visit->gate_checked_in_at)->format('d M Y, H:i') }}</td>
                             </tr>
                         </table>
-
-                        @if (! $visit->sampleReception)
-                            @include('sample-reception._intake-form')
-                        @endif
 
                         <h6 class="fw-bold text-primary">Devices</h6>
                         @forelse ($visit->devices as $device)
@@ -87,6 +49,41 @@
                         @empty
                             <div class="text-muted small">No device registered.</div>
                         @endforelse
+
+                        @if ($hasSamples)
+                            <h6 class="fw-bold text-primary mt-4">Samples</h6>
+                            <table class="table table-sm mb-4">
+                                @foreach ($visit->samples as $sample)
+                                    <tr>
+                                        <td>{{ $sample->sample_type }}</td>
+                                        <td class="text-end fw-semibold">{{ $sample->sample_count }}</td>
+                                    </tr>
+                                @endforeach
+                            </table>
+
+                            <h6 class="fw-bold text-primary">Owner</h6>
+                            <table class="table table-sm mb-4">
+                                <tr><th class="w-50 fw-normal text-muted">Company</th><td>{{ $visit->sample_owner_company }}</td></tr>
+                                <tr><th class="fw-normal text-muted">Company TIN</th><td>{{ $visit->sample_owner_tin ?? '—' }}</td></tr>
+                                <tr><th class="fw-normal text-muted">Name</th><td>{{ $visit->sample_owner_name ?? '—' }}</td></tr>
+                                <tr><th class="fw-normal text-muted">Phone</th><td>{{ $visit->sample_owner_phone ?? '—' }}</td></tr>
+                                <tr><th class="fw-normal text-muted">Email</th><td>{{ $visit->sample_owner_email ?? '—' }}</td></tr>
+                                <tr><th class="fw-normal text-muted">Payment Reference (PRN)</th><td>{{ $visit->sample_prn ?? '—' }}</td></tr>
+                            </table>
+
+                            <h6 class="fw-bold text-primary">Delivered by</h6>
+                            <table class="table table-sm mb-4">
+                                <tr>
+                                    <th class="w-50 fw-normal text-muted">Type</th>
+                                    <td>{{ $deliveredBy[$visit->delivered_by_type] ?? ($visit->delivered_by_type ?? '—') }}</td>
+                                </tr>
+                                <tr><th class="fw-normal text-muted">Company / courier</th><td>{{ $visit->delivered_by_company ?? '—' }}</td></tr>
+                            </table>
+                        @endif
+
+                        @if (! $visit->sampleReception)
+                            @include('sample-reception._intake-form')
+                        @endif
                     </div>
                 </div>
             </div>
@@ -134,8 +131,11 @@
                                 </div>
 
                                 <div class="d-grid">
-                                    <button type="submit" class="btn btn-primary btn-lg">Mark as served</button>
+                                    <button type="submit" class="btn btn-primary btn-lg" @disabled(! $hasSamples)>Mark as served</button>
                                 </div>
+                                @if (! $hasSamples)
+                                    <div class="form-text text-center mt-2">Record the sample details first.</div>
+                                @endif
                             </form>
                         @endif
                     </div>

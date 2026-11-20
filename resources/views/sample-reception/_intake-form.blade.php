@@ -6,7 +6,13 @@
 @endphp
 
 <details class="border rounded p-3 mb-4 bg-light" @if ($isOpen) open @endif>
-    <summary class="fw-semibold" style="cursor: pointer;">{{ $visit->samples->isNotEmpty() ? 'Change the sample details' : 'Record the sample details' }}</summary>
+    <summary class="fw-semibold" style="cursor: pointer;">{{ $visit->samples->isNotEmpty() ? 'Change the sample details' : 'To record here: sample details' }}</summary>
+
+    @if ($visit->samples->isEmpty())
+        <div class="small text-muted mt-2">
+            Still needed: the samples, who is delivering them, and the owner (company and a phone or email).
+        </div>
+    @endif
 
     @if ($errors->any())
         <div class="alert alert-danger mt-3">

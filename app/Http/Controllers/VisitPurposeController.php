@@ -23,9 +23,15 @@ class VisitPurposeController extends Controller
             'name' => 'required|string|max:100|unique:visit_purposes,name',
         ]);
 
+        if (! $request->boolean('at_main') && ! $request->boolean('at_rig')) {
+            return back()->withInput()->withErrors(['name' => 'Choose where this purpose is offered: Main site, Rig, or both.']);
+        }
+
         VisitPurpose::create([
             'name' => $validated['name'],
             'is_testing' => $request->boolean('is_testing'),
+            'at_main' => $request->boolean('at_main'),
+            'at_rig' => $request->boolean('at_rig'),
         ]);
 
         return back()->with('success', "Purpose \"{$validated['name']}\" added.");
@@ -43,9 +49,15 @@ class VisitPurposeController extends Controller
             'name' => ['required', 'string', 'max:100', Rule::unique('visit_purposes', 'name')->ignore($purpose->id)],
         ]);
 
+        if (! $request->boolean('at_main') && ! $request->boolean('at_rig')) {
+            return back()->withErrors(['name' => 'Choose where this purpose is offered: Main site, Rig, or both.']);
+        }
+
         $purpose->update([
             'name' => $validated['name'],
             'is_testing' => $request->boolean('is_testing'),
+            'at_main' => $request->boolean('at_main'),
+            'at_rig' => $request->boolean('at_rig'),
         ]);
 
         return back()->with('success', 'Purpose updated. Existing visits and bookings keep their original wording.');
@@ -60,6 +72,6 @@ class VisitPurposeController extends Controller
         $name = $purpose->name;
         $purpose->delete();
 
-        return back()->with('success', "Purpose \"{$name}\" deleted. Existing records are not affected.");
+        return back()->with('success', "Purpose \"{$name}\" deleted. Existing records arenot affected.");
     }
 }

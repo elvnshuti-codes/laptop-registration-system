@@ -19,6 +19,7 @@ class VisitorVisit extends Model
         'visitor_mobile_number',
         'visitor_card_number',
         'for_sample_reception',
+        'site',
         'gate_note',
         'delivery_to',
         'sample_owner_name',
@@ -36,6 +37,14 @@ class VisitorVisit extends Model
         'entry_cleared_at',
         'entry_cleared_by',
     ];
+
+    // Every visit belongs to one area: standard_house, sample_house or rig.
+    protected static function booted(): void
+    {
+        static::creating(function (VisitorVisit $visit) {
+            $visit->site ??= $visit->for_sample_reception ? 'sample_house' : 'standard_house';
+        });
+    }
 
     protected $casts = [
         'for_sample_reception' => 'boolean',

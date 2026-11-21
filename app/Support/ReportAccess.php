@@ -12,10 +12,13 @@ class ReportAccess
         'view all workload' => ["All receptionists' workload", 'Without this, the person sees only their own figure.'],
     ];
 
-    // Which building's data the person may see in reports and records.
+    // Which area's data the person may see in reports and records, and who may serve Rig visitors.
     public const AREAS = [
         'view standard house data' => ['Standard House data', 'Reports and records of Standard House visitors.'],
         'view sample house data' => ['Sample House data', 'Reports and records of Sample House (Testing) visitors.'],
+        'view rig data' => ['Rig data', 'Reports and records of Rig visitors.'],
+        'view all areas' => ['Who is on site: all areas', 'The on-site overview for every area (Standard House, Sample House, Rig). Without this, the person sees only their own area.'],
+        'serve rig visitors' => ['Serve Rig visitors at reception', 'Shows a separate "Rig visitors" group on this receptionist\'s dashboard.'],
     ];
 
     // Staff laptop pages. Check-in at Entry is not listed here: it comes with the Entry Officer role.
@@ -30,6 +33,7 @@ class ReportAccess
     public const GATE = [
         'verify gate items' => ['Verify items left at the gate', 'The Items to verify screen: approve belongings and arms left at the gate.'],
         'view gate items report' => ['Gate items accountability report', 'Who left arms and belongings, who collected them, and who verified the records.'],
+        'view vip visits' => ['View VIP visits', 'See the names and movements of VIPs. Others see only a VIP count.'],
     ];
 
     // How a person's screen behaves.

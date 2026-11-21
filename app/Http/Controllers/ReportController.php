@@ -22,6 +22,10 @@ class ReportController extends Controller
 
     private const GROUPS = ['day' => 'Day', 'week' => 'Week', 'month' => 'Month'];
 
+    // The areas a person can be allowed to see, and the site value stored on each visit.
+    private const AREA_SITES = ['standard' => 'standard_house', 'sample' => 'sample_house', 'rig' => 'rig'];
+    private const SITE_LABELS = ['standard_house' => 'Standard House', 'sample_house' => 'Sample House', 'rig' => 'Rig'];
+
     private const WEEKDAYS = [
         1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday',
         5 => 'Friday', 6 => 'Saturday', 7 => 'Sunday',
@@ -109,7 +113,7 @@ class ReportController extends Controller
 
     // --- Filters ----------------------------------------------------------
 
-    // Which areas may this user see? Administrators pass every permission check, so they see both.
+    // Which areas may this user see? Administrators pass every permission check, so theysee both.
     private function allowedAreas(): array
     {
         $user = auth()->user();
@@ -121,10 +125,19 @@ class ReportController extends Controller
         if ($user->can('view sample house data')) {
             $areas[] = 'sample';
         }
+        if ($user->can('view rig data')) {
+            $areas[] = 'rig';
+        }
 
         abort_if(empty($areas), 403, 'Your account is not linked to a reception area.');
 
         return $areas;
+    }
+
+    // The site values that match a list of areas.
+    private function sites(array $areas): array
+    {
+        return array_values(array_map(fn ($a) => self::AREA_SITES[$a], $areas));
     }
 
     private function filters(Request $request): array
@@ -134,7 +147,7 @@ class ReportController extends Controller
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'group' => ['nullable', Rule::in(array_keys(self::GROUPS))],
-            'area' => ['nullable', Rule::in(['all', 'standard', 'sample'])],
+            'area' => ['nullable', Rule::in(['all', 'standard', 'sample', 'rig'])],
             'purpose' => 'nullable|string|max:255',
             'reason' => 'nullable|string|max:100',
         ]);
@@ -142,7 +155,7 @@ class ReportController extends Controller
         $today = today();
         $preset = $request->input('preset') ?: 'week';
 
-        $customFrom = $request->filled('from') ? Carbon::parse($request->input('from')) : $today->copy()->startOfMonth();
+        $customFrom = $request->filled('from') ? Carbon::parse($request->input('from')) :$today->copy()->startOfMonth();
         $customTo = $request->filled('to') ? Carbon::parse($request->input('to')) : $today->copy();
 
         [$from, $to] = match ($preset) {
@@ -183,13 +196,7 @@ class ReportController extends Controller
         $visits = VisitorVisit::query()
             ->whereNotNull('gate_checked_in_at')
             ->whereBetween('gate_checked_in_at', [$start, $end])
-            ->when(count($f['areas']) === 1, function ($q) use ($f) {
-                if ($f['areas'][0] === 'sample') {
-                    $q->where('for_sample_reception', true);
-                } else {
-                    $q->where(fn ($w) => $w->where('for_sample_reception', false)->orWhereNull('for_sample_reception'));
-                }
-            })
+            ->whereIn('site', $this->sites($f['areas']))
             ->when($f['purpose'], fn ($q, $purpose) => $q->where('purpose', $purpose))
             ->with(['receptions', 'sampleReception', 'exceptions'])
             ->orderBy('gate_checked_in_at')
@@ -223,7 +230,7 @@ class ReportController extends Controller
             return [
                 'visit' => $v,
                 'checkIn' => Carbon::parse($v->gate_checked_in_at),
-                'area' => $isSample ? 'Sample House' : 'Standard House',
+                'area' => self::SITE_LABELS[$v->site] ?? ($isSample ? 'Sample House' : 'Standard House'),
                 'purpose' => $v->purpose,
                 'served' => $served,
                 'servedAt' => $servedAt ? Carbon::parse($servedAt) : null,

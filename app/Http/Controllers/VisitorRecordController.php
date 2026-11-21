@@ -27,6 +27,10 @@ class VisitorRecordController extends Controller
 
     private const FILTER_KEYS = ['q', 'from', 'to', 'status', 'area', 'purpose'];
 
+    // The areas a person can be allowed to see, and the site value stored on each visit.
+    private const AREA_SITES = ['standard' => 'standard_house', 'sample' => 'sample_house', 'rig' => 'rig'];
+    private const SITE_LABELS = ['standard_house' => 'Standard House', 'sample_house' => 'Sample House', 'rig' => 'Rig'];
+
     // --- Pages ------------------------------------------------------------
 
     public function index(Request $request)
@@ -55,7 +59,7 @@ class VisitorRecordController extends Controller
     // One visitor: details and the full timeline.
     public function show(VisitorVisit $visit)
     {
-        $area = $visit->for_sample_reception ? 'sample' : 'standard';
+        $area = array_search($visit->site, self::AREA_SITES, true) ?: ($visit->for_sample_reception ? 'sample' : 'standard');
         abort_unless(in_array($area, $this->allowedAreas(), true), 403, 'This visitor belongs to another area.');
 
         $visit->load([
@@ -88,7 +92,7 @@ class VisitorRecordController extends Controller
             fwrite($out, "\xEF\xBB\xBF");
 
             fputcsv($out, [
-                'Visit code', 'Name', 'Mobile', 'Purpose', 'Area', 'Checked in', 'Entry', 'Received at Reception',
+                'Visit code', 'Name', 'Mobile', 'Purpose', 'Area', 'Checked in', 'Entry','Received at Reception',
                 'Served at', 'Cleared at Entry', 'Checked out', 'Time on premises', 'Destination', 'Meeting with',
                 'Status', 'Unserved reason', 'Note', 'Spoke to', 'Acknowledged at',
             ]);
@@ -104,18 +108,18 @@ class VisitorRecordController extends Controller
                     $fmt($r['checkIn']), $fmt($r['entryAt']), $fmt($r['receivedAt']),
                     $fmt($r['servedAt']), $fmt($r['clearedAt']), $fmt($r['checkOut']),
                     $r['duration'], $r['destinations'], $r['meeting'],
-                    $r['status'], $u?->reason ?? '', $u?->note ?? '', $u?->confirmed_with ?? '',
+                    $r['status'], $u?->reason ?? '', $u?->note ?? '', $u?->confirmed_with?? '',
                     $u?->acknowledged_at ? Carbon::parse($u->acknowledged_at)->format('Y-m-d H:i') : '',
                 ]));
             }
 
             fclose($out);
-        }, 'unbs-visitor-records-' . now()->format('Ymd-Hi') . '.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+        }, 'unbs-visitor-records-' . now()->format('Ymd-Hi') . '.csv', ['Content-Type' =>'text/csv; charset=UTF-8']);
     }
 
     // --- Search -----------------------------------------------------------
 
-    // Which areas may this user see? Administrators pass every permission check, so they see both.
+    // Which areas may this user see? Administrators pass every permission check, so theysee both.
     private function allowedAreas(): array
     {
         $user = auth()->user();
@@ -127,10 +131,19 @@ class VisitorRecordController extends Controller
         if ($user->can('view sample house data')) {
             $areas[] = 'sample';
         }
+        if ($user->can('view rig data')) {
+            $areas[] = 'rig';
+        }
 
         abort_if(empty($areas), 403, 'Your account is not linked to a reception area.');
 
         return $areas;
+    }
+
+    // The site values that match a list of areas.
+    private function sites(array $areas): array
+    {
+        return array_values(array_map(fn ($a) => self::AREA_SITES[$a], $areas));
     }
 
     // Builds the visitor query from the search form. Returns [query, allowed areas].
@@ -141,7 +154,7 @@ class VisitorRecordController extends Controller
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'status' => ['nullable', Rule::in(array_keys(self::STATUSES))],
-            'area' => ['nullable', Rule::in(['all', 'standard', 'sample'])],
+            'area' => ['nullable', Rule::in(['all', 'standard', 'sample', 'rig'])],
             'purpose' => 'nullable|string|max:255',
         ]);
 
@@ -151,13 +164,7 @@ class VisitorRecordController extends Controller
 
         $query = VisitorVisit::query()
             ->whereNotNull('gate_checked_in_at')
-            ->when(count($areas) === 1, function ($q) use ($areas) {
-                if ($areas[0] === 'sample') {
-                    $q->where('for_sample_reception', true);
-                } else {
-                    $q->where(fn ($w) => $w->where('for_sample_reception', false)->orWhereNull('for_sample_reception'));
-                }
-            })
+            ->whereIn('site', $this->sites($areas))
             ->when($request->filled('q'), function ($q) use ($request) {
                 $like = '%' . trim($request->input('q')) . '%';
 
@@ -175,8 +182,8 @@ class VisitorRecordController extends Controller
                     'served' => $q->where(fn ($w) => $w
                         ->whereHas('receptions', fn ($r) => $r->where('served', true))
                         ->orWhereHas('sampleReception')),
-                    'unserved' => $q->whereHas('exceptions', fn ($e) => $e->where('type', 'left_unserved')),
-                    'followup' => $q->whereHas('exceptions', fn ($e) => $e->where('type', 'left_unserved')->whereNull('acknowledged_at')),
+                    'unserved' => $q->whereHas('exceptions', fn ($e) => $e->where('type','left_unserved')),
+                    'followup' => $q->whereHas('exceptions', fn ($e) => $e->where('type','left_unserved')->whereNull('acknowledged_at')),
                     'onsite' => $q->whereNull('gate_checked_out_at'),
                     default => null,
                 };
@@ -215,7 +222,7 @@ class VisitorRecordController extends Controller
 
         return [
             'visit' => $v,
-            'area' => $isSample ? 'Sample House' : 'Standard House',
+            'area' => self::SITE_LABELS[$v->site] ?? ($isSample ? 'Sample House' : 'Standard House'),
             'purpose' => $v->purpose,
             'checkIn' => $checkIn,
             'entryAt' => $entryAt,

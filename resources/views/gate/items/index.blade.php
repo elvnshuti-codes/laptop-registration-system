@@ -20,7 +20,7 @@
             <div class="card-body p-0">
                 @forelse ($visits as $visit)
                     @php
-                        $handlerIds = $visit->leftItems->pluck('handled_by')->merge([$visit->security?->handled_by])->filter()->unique();
+                        $handlerIds = $visit->leftItems->pluck('handled_by')->merge([$visit->security?->handled_by])->merge($visit->waivers->pluck('recorded_by'))->filter()->unique();
                         $mine = $handlerIds->contains(auth()->id());
                         $left = $visit->gate_checked_out_at !== null;
                     @endphp
@@ -62,8 +62,21 @@
                         @if ($visit->security)
                             <div class="mt-2 small">
                                 <strong>{{ $visit->security->force }} &middot; {{ $visit->security->officer_rank }}</strong>
-                                &mdash; protecting {{ $visit->security->vip_name }} ({{ $visit->security->vip_title }})
                                 &middot; taken in by {{ $visit->security->handler->name }}
+                            </div>
+                        @endif
+
+                        @if ($visit->waivers->isNotEmpty())
+                            <div class="mt-2 small border border-danger rounded p-2">
+                                <span class="badge bg-danger">Waived by the officer in command</span>
+                                @foreach ($visit->waivers as $waiver)
+                                    <div>{{ $waiver->label() }}</div>
+                                @endforeach
+                                <div class="text-muted">
+                                    {{ $visit->waivers->first()->reason }}
+                                    @if ($visit->waivers->first()->note) &middot; {{ $visit->waivers->first()->note }} @endif
+                                    &middot; recorded by {{ $visit->waivers->first()->recorder?->name }}
+                                </div>
                             </div>
                         @endif
 
@@ -88,7 +101,7 @@
                 <div class="card-header bg-white fw-semibold">Recently approved</div>
                 <ul class="list-group list-group-flush">
                     @foreach ($recent as $visit)
-                        @php $row = $visit->arms->first() ?? $visit->leftItems->first(); @endphp
+                        @php $row = $visit->arms->first() ?? $visit->leftItems->first() ?? $visit->waivers->first(); @endphp
                         <li class="list-group-item small">
                             {{ $visit->name }} &middot; approved by {{ $row->approver?->name }}
                             on {{ $row->approved_at->format('d M Y, H:i') }}

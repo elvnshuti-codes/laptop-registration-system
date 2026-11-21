@@ -138,7 +138,7 @@
                         </div>
                     </div>
 
-                    {{-- Short note: every purpose except Security. Full details are captured at the reception. --}}
+                    {{-- Short note for every purpose, Security included. Full details are captured at the reception. --}}
                     <div id="note_block" class="mb-3" style="display: none;">
                         <div id="delivery_wrap" class="mb-3" style="display: none;">
                             <label for="delivery_to" class="form-label fw-semibold">Delivering to</label>
@@ -153,7 +153,7 @@
                         </div>
 
                         <label for="gate_note" class="form-label fw-semibold">
-                            Note <span class="text-muted fw-normal">(optional)</span>
+                            <span id="gate_note_label">Note</span> <span class="text-muted fw-normal">(optional)</span>
                         </label>
                         <textarea id="gate_note" name="gate_note" rows="2" maxlength="500"
                                   class="form-control @error('gate_note') is-invalid @enderror">{{ old('gate_note') }}</textarea>
@@ -177,8 +177,14 @@
                                     @foreach ($forces as $value => $label)
                                         <option value="{{ $value }}" @selected(old('security_force') === $value)>{{ $label }}</option>
                                     @endforeach
+                                    <option value="Other" @selected(old('security_force') === 'Other')>Other (specify)</option>
                                 </select>
                                 @error('security_force') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                <input type="text" id="security_force_other" name="security_force_other" maxlength="80"
+                                       class="form-control mt-2 @error('security_force_other') is-invalid @enderror"
+                                       value="{{ old('security_force_other') }}" placeholder="Which force or organisation?"
+                                       style="display: none;" autocomplete="off">
+                                @error('security_force_other') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                             </div>
                             <div class="col-md-6">
                                 <label for="officer_rank" class="form-label fw-semibold">Officer's rank</label>
@@ -190,31 +196,50 @@
                             </div>
                         </div>
 
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <label for="vip_name" class="form-label fw-semibold">VIP being protected</label>
-                                <input type="text" id="vip_name" name="vip_name" maxlength="255"
-                                       class="form-control @error('vip_name') is-invalid @enderror"
-                                       value="{{ old('vip_name') }}" placeholder="Name of the VIP">
-                                @error('vip_name') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            </div>
-                            <div class="col-md-6">
-                                <label for="vip_title" class="form-label fw-semibold">VIP's title</label>
-                                <input type="text" id="vip_title" name="vip_title" maxlength="255"
-                                       class="form-control @error('vip_title') is-invalid @enderror"
-                                       value="{{ old('vip_title') }}" placeholder="e.g. Minister of Trade">
-                                @error('vip_title') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            </div>
+                        {{-- Senior officer in command: some details waived. Never blocks the check-in. --}}
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" role="switch" id="has_waiver"
+                                   name="has_waiver" value="1" @checked(old('has_waiver'))>
+                            <label class="form-check-label fw-semibold" for="has_waiver">
+                                Senior officer in command: some details waived
+                            </label>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="locker_number" class="form-label fw-semibold">
-                                Locker number <span class="text-muted fw-normal">(optional)</span>
-                            </label>
-                            <input type="text" id="locker_number" name="locker_number" maxlength="40"
-                                   class="form-control @error('locker_number') is-invalid @enderror"
-                                   value="{{ old('locker_number') }}" placeholder="Locker holding the officer's belongings">
-                            @error('locker_number') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <div id="waiver_block" class="border rounded p-3 mb-3 bg-light" style="display: none;">
+                            <div class="small text-muted mb-2">
+                                The visit is not blocked. What is waived is recorded under your name and reviewed by the Supervisor.
+                            </div>
+
+                            <div class="fw-semibold small mb-1">What is waived</div>
+                            @foreach ($waiverSteps as $key => $label)
+                                <div class="form-check">
+                                    <input class="form-check-input waive-step" type="checkbox" name="waive[]" value="{{ $key }}"
+                                           id="waive-{{ $key }}" @checked(in_array($key, (array) old('waive', []), true))>
+                                    <label class="form-check-label" for="waive-{{ $key }}">{{ $label }}</label>
+                                </div>
+                            @endforeach
+                            @error('waive') <div class="text-danger small">{{ $message }}</div> @enderror
+
+                            <div class="row g-2 mt-2">
+                                <div class="col-md-5">
+                                    <label for="waiver_reason" class="form-label small mb-1">Reason</label>
+                                    <select id="waiver_reason" name="waiver_reason"
+                                            class="form-select @error('waiver_reason') is-invalid @enderror">
+                                        <option value="">Choose...</option>
+                                        @foreach ($waiverReasons as $reason)
+                                            <option value="{{ $reason }}" @selected(old('waiver_reason') === $reason)>{{ $reason }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('waiver_reason') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                                <div class="col-md-7">
+                                    <label for="waiver_note" class="form-label small mb-1">Note <span class="text-muted">(optional)</span></label>
+                                    <input type="text" id="waiver_note" name="waiver_note" maxlength="300"
+                                           class="form-control @error('waiver_note') is-invalid @enderror"
+                                           value="{{ old('waiver_note') }}">
+                                    @error('waiver_note') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-check form-switch mb-2">
@@ -274,15 +299,15 @@
                                 @endforeach
                             </div>
                             <button type="button" id="add_arm" class="btn btn-sm btn-outline-primary">+ Add another weapon</button>
-                        </div>
 
-                        <div class="alert alert-warning mt-3 mb-0">
-                            <strong>Locker key:</strong> put a card numbered
-                            <strong id="locker_card_no">(visitor card number)</strong>
-                            on the key holder of the locker where this officer's belongings have been placed.
-                            <div class="small mt-1">
-                                Handled by <strong>{{ auth()->user()->name }}</strong>.
-                                Your name is recorded and printed on the ticket.
+                            <div class="mt-3">
+                                <label for="locker_number" class="form-label fw-semibold">
+                                    Locker number <span class="text-muted fw-normal">(where the arms and belongings are kept)</span>
+                                </label>
+                                <input type="text" id="locker_number" name="locker_number" maxlength="40"
+                                       class="form-control @error('locker_number') is-invalid @enderror"
+                                       value="{{ old('locker_number') }}" placeholder="e.g. Locker 12">
+                                @error('locker_number') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                         </div>
                     </div>
@@ -417,14 +442,15 @@
             const isDelivery = delivery.includes(p);
             const isSecurity = security.includes(p);
 
-            noteBlock.style.display = (p && !isSecurity) ? '' : 'none';
-            if (isSecurity) note.value = '';
+            noteBlock.style.display = p ? '' : 'none';
+            document.getElementById('gate_note_label').textContent = isSecurity ? 'Details about the visit' : 'Note';
 
             deliveryWrap.style.display = isDelivery ? '' : 'none';
             deliveryTo.required = isDelivery;
             if (!isDelivery) deliveryTo.value = '';
 
-            note.placeholder = isTesting ? 'e.g. Which sample, whose sample'
+            note.placeholder = isSecurity ? 'e.g. Arresting a staff member, escorting a VIP'
+                : isTesting ? 'e.g. Which sample, whose sample'
                 : (isDelivery ? 'e.g. What is being delivered'
                 : 'Anything useful about the visit');
 
@@ -510,8 +536,6 @@
         const armsToggle = document.getElementById('has_arms');
         const armsBlock = document.getElementById('arms_block');
         const armRows = document.getElementById('arm_rows');
-        const cardInput = document.getElementById('visitor_card_number');
-        const cardNo = document.getElementById('locker_card_no');
 
         const firearms = @json($armTypes['Firearms']);
 
@@ -529,6 +553,12 @@
         }
 
         function updateSecurity() { block.style.display = securityPurposes.includes(purpose.value) ? '' : 'none'; }
+        const forceOther = document.getElementById('security_force_other');
+        function updateForceOther() {
+            const other = force.value === 'Other';
+            forceOther.style.display = other ? '' : 'none';
+            if (!other) forceOther.value = '';
+        }
         function updateRanks() {
             rankList.innerHTML = '';
             (ranks[force.value] || []).forEach(function (rank) {
@@ -538,13 +568,12 @@
             });
         }
         function updateArms() { armsBlock.style.display = armsToggle.checked ? '' : 'none'; }
-        function updateCard() { cardNo.textContent = cardInput.value.trim() || '(visitor card number)'; }
 
         purpose.addEventListener('change', updateSecurity);
         force.addEventListener('change', updateRanks);
+        force.addEventListener('change', updateForceOther);
         armsToggle.addEventListener('change', updateArms);
-        cardInput.addEventListener('input', updateCard);
-        updateSecurity(); updateRanks(); updateArms(); updateCard();
+        updateSecurity(); updateForceOther(); updateRanks(); updateArms();
 
         function reindexArms() {
             armRows.querySelectorAll('.arm-row').forEach(function (row, i) {
@@ -582,6 +611,49 @@
                 adjustArm(row);
             }
         });
+    })();
+    // Senior officer in command: waived steps are hidden and switched off, never blocking the check-in.
+    (function () {
+        const toggle = document.getElementById('has_waiver');
+        const block = document.getElementById('waiver_block');
+        const steps = {
+            id_document: function () {
+                return [document.getElementById('id_document_type').closest('.row'),
+                        document.getElementById('id_document_number').closest('.mb-3')];
+            },
+            arms: function () { return [document.getElementById('has_arms').closest('.form-check')]; },
+        };
+
+        function setHidden(box, hidden) {
+            if (!box) return;
+            box.style.display = hidden ? 'none' : '';
+            box.querySelectorAll('input, select, textarea').forEach(function (el) { el.disabled = hidden; });
+        }
+
+        function update() {
+            // Only while the Security section itself is showing.
+            const on = toggle.checked && document.getElementById('security_block').style.display !== 'none';
+            block.style.display = toggle.checked ? '' : 'none';
+
+            Object.keys(steps).forEach(function (key) {
+                const ticked = on && document.getElementById('waive-' + key).checked;
+
+                // Waiving the arms switches the "leaving arms" option off, which also hides the arms rows.
+                if (key === 'arms' && ticked) {
+                    const armsToggle = document.getElementById('has_arms');
+                    armsToggle.checked = false;
+                    armsToggle.dispatchEvent(new Event('change'));
+                }
+
+                steps[key]().forEach(function (box) { setHidden(box, ticked); });
+
+            });
+        }
+
+        toggle.addEventListener('change', update);
+        document.getElementById('purpose').addEventListener('change', update);
+        document.querySelectorAll('.waive-step').forEach(function (el) { el.addEventListener('change', update); });
+        update();
     })();
 </script>
 @endsection

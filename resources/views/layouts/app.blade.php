@@ -153,8 +153,9 @@
          
         if ($u->can('verify gate items')) {
             $pendingItems = \App\Models\VisitorVisit::query()
-                ->where(fn ($q) => $q->whereHas('leftItems', fn ($i) => $i->whereNull('approved_at'))
-                    ->orWhereHas('arms', fn ($i) => $i->whereNull('approved_at')))
+            ->where(fn ($q) => $q->whereHas('leftItems', fn ($i) => $i->whereNull('approved_at'))
+                    ->orWhereHas('arms', fn ($i) => $i->whereNull('approved_at'))
+                    ->orWhereHas('waivers', fn ($i) => $i->whereNull('approved_at')))
                 ->count();
             $insights[] = ['flat' => 'Items to verify', 'item' => 'Items to verify' . ($pendingItems ? " ({$pendingItems})" : ''), 'url' => route('gate.items.index'), 'active' => $on('gate.items.index', 'gate.items.approve')];
         }

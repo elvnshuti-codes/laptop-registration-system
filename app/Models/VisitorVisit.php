@@ -135,6 +135,11 @@ class VisitorVisit extends Model
     {
         return $this->hasMany(\App\Models\VisitArm::class);
     }
+    public function waivers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\VisitWaiver::class);
+    }
+
     public function detail(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(\App\Models\VisitDetail::class);

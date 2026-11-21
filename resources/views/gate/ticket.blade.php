@@ -81,11 +81,24 @@
                     </div>
                 @endif
 
+                @if ($visit->waivers->isNotEmpty())
+                    <div class="border border-danger rounded p-3 mt-3 text-start">
+                        <div class="small text-uppercase text-muted mb-1">Waived by the officer in command</div>
+                        @foreach ($visit->waivers as $waiver)
+                            <div>{{ $waiver->label() }}</div>
+                        @endforeach
+                        <div class="small text-muted mt-1">
+                            {{ $visit->waivers->first()->reason }}
+                            @if ($visit->waivers->first()->note) &middot; {{ $visit->waivers->first()->note }} @endif
+                            &middot; recorded by {{ $visit->waivers->first()->recorder?->name }}
+                        </div>
+                    </div>
+                @endif
+
                 @if ($visit->security)
                     <div class="border border-dark rounded p-3 mt-3 text-start">
                         <div class="small text-uppercase text-muted mb-1">Security officer</div>
                         <div class="fw-semibold">{{ $visit->security->force }} &middot; {{ $visit->security->officer_rank }}</div>
-                        <div>Protecting: {{ $visit->security->vip_name }} <span class="text-muted">({{ $visit->security->vip_title }})</span></div>
 
                         @if ($visit->arms->isNotEmpty())
                             <div class="small text-uppercase text-muted mt-2 mb-1">Arms left at the gate</div>
@@ -94,10 +107,9 @@
                             @endforeach
                         @endif
 
-                        <div class="small mt-2">
-                            Locker key card: <strong>{{ $visit->visitor_card_number }}</strong>
-                            @if ($visit->security->locker_number) &middot; Locker <strong>{{ $visit->security->locker_number }}</strong> @endif
-                        </div>
+                        @if ($visit->security->locker_number)
+                            <div class="small mt-2">Arms and belongings kept in locker <strong>{{ $visit->security->locker_number }}</strong></div>
+                        @endif
                         <div class="small mt-1">Handled by <strong>{{ $visit->security->handler->name }}</strong></div>
                     </div>
                 @endif

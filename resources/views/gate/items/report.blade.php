@@ -41,6 +41,7 @@
             @foreach ([
                 ['Records', $summary['all'], 'secondary'],
                 ['Officers who left arms', $summary['armed'], 'dark'],
+                ['Waivers', $summary['waived'], 'dark'],
                 ['Collected their arms', $summary['armed_collected'], 'success'],
                 ['Arms still held', $summary['armed_held'], 'warning'],
                 ['Not returned', $summary['not_returned'], 'danger'],
@@ -86,12 +87,20 @@
                                     @foreach ($visit->leftItems as $item)
                                         <div>{{ $item->quantity }} &times; {{ $item->colour }} {{ $item->item_name }}</div>
                                     @endforeach
+                                    @foreach ($visit->waivers as $waiver)
+                                        <div class="text-danger">Waived: {{ $waiver->label() }}</div>
+                                    @endforeach
+                                    @if ($visit->waivers->isNotEmpty())
+                                        <div class="text-muted">{{ $visit->waivers->first()->reason }}</div>
+                                    @endif
                                 </td>
                                 <td class="small">
-                                    {{ ($visit->security?->handler ?? $visit->leftItems->first()?->handler)?->name }}
+                                    {{ ($visit->security?->handler ?? $visit->leftItems->first()?->handler ?? $visit->waivers->first()?->recorder)?->name }}
                                 </td>
                                 <td class="small">
-                                    @if ($visit->stillHeld)
+                                    @if ($visit->rows->isEmpty())
+                                        <span class="text-muted">Nothing left</span>
+                                    @elseif ($visit->stillHeld)
                                         <span class="badge bg-warning text-dark">Still held</span>
                                     @elseif ($visit->allReturned)
                                         <span class="badge bg-success">Collected</span>
@@ -105,7 +114,7 @@
                                 </td>
                                 <td class="small">
                                     @if ($visit->allApproved)
-                                        @php $first = $visit->rows->first(); @endphp
+                                        @php $first = $visit->approvalRows->first(); @endphp
                                         <span class="badge {{ $visit->anyLate ? 'bg-warning text-dark' : 'bg-success' }}">
                                             {{ $visit->anyLate ? 'Approved late' : 'Approved' }}
                                         </span>

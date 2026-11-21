@@ -8,6 +8,7 @@ use App\Models\VisitArm;
 use App\Models\VisitDetail;
 use App\Models\VisitArrival;
 use App\Models\VisitSecurityDetail;
+use App\Models\VisitWaiver;
 use App\Models\VisitorBooking;
 use App\Models\VisitorVisit;
 use App\Models\VisitPurpose;
@@ -15,6 +16,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -84,10 +86,12 @@ class GateController extends Controller
         $ranks = VisitSecurityDetail::RANKS;
         $departments = Department::orderBy('name')->pluck('name');
         $armTypes = ['Firearms' => VisitArm::FIREARMS, 'Other weapons' => VisitArm::OTHERS];
+        $waiverSteps = array_diff_key(VisitWaiver::STEPS, ['vip_details' => true]);
+        $waiverReasons = VisitWaiver::REASONS;
 
         return view('gate.create', compact(
             'booking', 'purposes', 'testingPurposes', 'deliveryPurposes', 'deliveryTo', 'sampleTypes', 'deliveredBy', 'arrivalModes',
-            'securityPurposes', 'forces', 'ranks', 'armTypes', 'departments'
+            'securityPurposes', 'forces', 'ranks', 'armTypes', 'departments', 'waiverSteps', 'waiverReasons'
         ));
     }
 
@@ -118,6 +122,13 @@ class GateController extends Controller
 
         // Is this a delivery? Decided by the purpose's Delivery flag.
         $isDelivery = VisitPurpose::deliveryNames()->contains($request->input('purpose'));
+
+        // A senior officer in command may waive some details. The visit is never blocked; the waiver is recorded.
+        $waiveSteps = [];
+        if ($isSecurity && $request->boolean('has_waiver')) {
+            $waiveSteps = array_values(array_intersect(array_keys(VisitWaiver::STEPS), (array) $request->input('waive', [])));
+        }
+        $waived = fn (string $step) => in_array($step, $waiveSteps, true);
 
         $rules = [
             'name' => 'required|string|max:255',
@@ -157,10 +168,9 @@ class GateController extends Controller
         // Security visitors: force, rank, the VIP they protect, and the arms they leave.
         if ($isSecurity) {
             $rules += [
-                'security_force' => ['required', Rule::in(array_keys(VisitSecurityDetail::FORCES))],
+                'security_force' => ['required', Rule::in(array_merge(array_keys(VisitSecurityDetail::FORCES), ['Other']))],
+                'security_force_other' => ['nullable', 'string', 'max:80', 'required_if:security_force,Other'],
                 'officer_rank' => 'required|string|max:80',
-                'vip_name' => 'required|string|max:255',
-                'vip_title' => 'required|string|max:255',
                 'locker_number' => 'nullable|string|max:40',
                 'has_arms' => 'nullable|boolean',
             ];
@@ -186,6 +196,29 @@ class GateController extends Controller
             }
         }
 
+        if ($isSecurity && $request->boolean('has_waiver')) {
+            $rules += [
+                'waive' => 'required|array|min:1',
+                'waive.*' => Rule::in(array_keys(VisitWaiver::STEPS)),
+                'waiver_reason' => ['required', Rule::in(VisitWaiver::REASONS)],
+                'waiver_note' => 'nullable|required_if:waiver_reason,Other|string|max:300',
+            ];
+        }
+
+        // What the senior officer waived is not demanded.
+        if ($waived('id_document')) {
+            $rules['id_document_type'] = 'nullable|string|max:50';
+            $rules['id_document_other'] = 'nullable|string|max:255';
+            $rules['id_document_number'] = 'nullable|string|max:50';
+        }
+        if ($waived('arms')) {
+            foreach (array_keys($rules) as $key) {
+                if ($key === 'arms' || str_starts_with($key, 'arms.')) {
+                    unset($rules[$key]);
+                }
+            }
+        }
+
         // The person delivering samples or goods must always be reachable.
         if ($isTesting || $isDelivery) {
             $rules['visitor_mobile_number'] = 'required|string|max:20';
@@ -200,11 +233,13 @@ class GateController extends Controller
             'items.*.name.required' => 'Enter the item name for every row.',
             'items.*.colour.required' => 'Enter the colour of every item.',
             'items.*.quantity.required' => 'Enter how many of every item.',
-            'security_force.required' => 'Choose whether the officer belongs to the UPDF or the UPF.',
+            'security_force.required' => 'Choose the officer\'s force, or choose Other and specify it.',
+            'security_force_other.required_if' => 'Specify the force or organisation the officer belongs to.',
             'officer_rank.required' => "Enter the officer's rank.",
-            'vip_name.required' => 'Enter the name of the VIP the officer is protecting.',
-            'vip_title.required' => "Enter the VIP's title (e.g. Minister of Trade).",
             'arms.required' => 'Add at least one weapon, or switch that option off.',
+            'waive.required' => 'Tick what the senior officer in command has waived.',
+            'waiver_reason.required' => 'Choose why the details were waived.',
+            'waiver_note.required_if' => 'Add a short note when the reason is Other.',
             'arms.*.type.required' => 'Choose the type of every weapon.',
             'arms.*.make.required_if' => 'Describe the weapon when the type is Other.',
             'arms.*.serial.required_if' => 'Enter the serial number of every firearm.',
@@ -226,23 +261,36 @@ class GateController extends Controller
         $arms = [];
         if ($isSecurity) {
             $security = [
-                'force' => $validated['security_force'],
+                'force' => $validated['security_force'] === 'Other' ? trim($validated['security_force_other']) : $validated['security_force'],
                 'rank' => trim($validated['officer_rank']),
-                'vip_name' => trim($validated['vip_name']),
-                'vip_title' => trim($validated['vip_title']),
-                'locker' => filled($validated['locker_number'] ?? null) ? trim($validated['locker_number']) : null,
+                'locker' => ($request->boolean('has_arms') && ! $waived('arms') && filled($validated['locker_number'] ?? null)) ? trim($validated['locker_number']) : null,
             ];
-            $arms = $request->boolean('has_arms') ? ($validated['arms'] ?? []) : [];
+            $arms = ($request->boolean('has_arms') && ! $waived('arms')) ? ($validated['arms'] ?? []) : [];
         }
         unset(
-            $validated['security_force'], $validated['officer_rank'], $validated['vip_name'], $validated['vip_title'],
+            $validated['security_force'], $validated['security_force_other'], $validated['officer_rank'],
             $validated['locker_number'], $validated['has_arms'], $validated['arms']
         );
+
+        // A waived ID is stored as a unique marker, so it is never mistaken for a returning visitor's number.
+        if ($waived('id_document')) {
+            $validated['id_document_type'] = 'Other';
+            $validated['id_document_other'] = 'Waived by officer in command';
+            $validated['id_document_number'] = 'WAIVED-' . strtoupper(Str::random(8));
+        }
+
+        // The waiver itself is saved in its own table.
+        $waiver = $waiveSteps ? [
+            'steps' => $waiveSteps,
+            'reason' => $validated['waiver_reason'],
+            'note' => filled($validated['waiver_note'] ?? null) ? trim($validated['waiver_note']) : null,
+        ] : null;
+        unset($validated['waive'], $validated['has_waiver'], $validated['waiver_reason'], $validated['waiver_note']);
 
         $validated['id_document_number'] = strtoupper(trim($validated['id_document_number']));
         $validated['for_sample_reception'] = $isTesting;
 
-        $visit = DB::transaction(function () use ($validated, $arrival, $leftItems, $officerId, $security, $arms) {
+        $visit = DB::transaction(function () use ($validated, $arrival, $leftItems, $officerId, $security, $arms, $waiver) {
             // If this visitor came with a booking, lock it and re-check it,
             // so one booking can never be used twice.
             $booking = null;
@@ -304,8 +352,6 @@ class GateController extends Controller
                 $visit->security()->create([
                     'force' => $security['force'],
                     'officer_rank' => $security['rank'],
-                    'vip_name' => $security['vip_name'],
-                    'vip_title' => $security['vip_title'],
                     'locker_number' => $security['locker'],
                     'handled_by' => $officerId,
                 ]);
@@ -322,6 +368,15 @@ class GateController extends Controller
                         'quantity' => $firearm ? 1 : (int) $row['count'],
                     ]);
                 }
+            }
+
+            foreach ($waiver['steps'] ?? [] as $step) {
+                $visit->waivers()->create([
+                    'step' => $step,
+                    'reason' => $waiver['reason'],
+                    'note' => $waiver['note'],
+                    'recorded_by' => $officerId,
+                ]);
             }
 
             if ($booking) {
@@ -343,7 +398,7 @@ class GateController extends Controller
     // Shows the printable ticket after a successful check-in.
     public function ticket(VisitorVisit $visit)
     {
-        $visit->load(['arrival', 'leftItems.handler', 'security.handler', 'arms', 'detail']);
+        $visit->load(['arrival', 'leftItems.handler', 'security.handler', 'arms', 'detail', 'waivers.recorder']);
 
         return view('gate.ticket', compact('visit'));
     }
